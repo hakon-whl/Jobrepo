@@ -1,0 +1,375 @@
+
+
+
+
+
+/* === Globale Variablen === */
+:root {
+  --primary-color: #007bff;
+  --primary-hover-color: #0056b3;
+  --text-color: #333;
+  --label-color: #555;
+  --border-color: #ccc;
+  --background-color: #f8f9fa;
+  --white: #ffffff;
+  --error-color: #dc3545;
+  --success-color: #28a745;
+  --success-hover-color: #218838; /* Für Hover auf Erfolgslink */
+  --disabled-color: #cccccc;
+  --disabled-bg-color: #e9ecef;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --border-radius: 5px;
+  --input-padding: 10px;
+  --base-font-size: 16px;
+}
+
+/* === Basis-Styling === */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-size: var(--base-font-size);
+  line-height: 1.6;
+}
+
+.app-container {
+  max-width: 2000px; /* Angepasst für einspaltiges Layout */
+  margin: 20px auto;
+  background-color: var(--white);
+  padding: 30px 40px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+h1 {
+  text-align: center;
+  color: var(--primary-color);
+  margin-bottom: 30px;
+  font-weight: 500;
+}
+
+.content-wrapper {
+  display: flex; /* Behält Flexbox bei, auch wenn nur eine Spalte */
+  gap: 40px;
+}
+
+.form-section {
+  flex: 1; /* Nimmt den gesamten verfügbaren Platz ein */
+  min-width: 300px;
+}
+
+/* === Formular-Styling === */
+.application-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Abstand zwischen Fieldsets */
+}
+
+fieldset {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin: 0;
+}
+
+legend {
+  font-weight: 600;
+  color: var(--primary-color);
+  padding: 0 10px;
+  font-size: 1.1em;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+label {
+  font-weight: 500;
+  color: var(--label-color);
+  font-size: 0.95em;
+}
+
+input[type="text"],
+select,
+textarea {
+  padding: var(--input-padding);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* === Checkbox-Styling === */
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(150px, 1fr)
+  );
+  gap: 10px 15px;
+  margin-top: 5px;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: var(--border-radius);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.checkbox-item label {
+  font-weight: normal;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+/* === Submit-Button Styling === */
+.submit-button {
+  padding: 12px 25px;
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  align-self: flex-start;
+  margin-top: 10px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: var(--primary-hover-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.submit-button:disabled {
+  background-color: var(--disabled-bg-color);
+  color: var(--disabled-color);
+  cursor: not-allowed;
+}
+
+/* === Statusmeldungen Styling === */
+.status-message {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  text-align: center;
+  font-weight: 500;
+  display: block; /* Wichtig für Padding/Margin */
+}
+
+.status-message.loading {
+  color: var(--label-color);
+  background-color: #f0f0f0;
+}
+
+/* Styling für den Erfolgs-Link */
+.status-message.success.clickable {
+  color: var(--white);
+  background-color: var(--success-color);
+  text-decoration: none; /* Unterstreichung entfernen */
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-message.success.clickable:hover {
+  background-color: var(--success-hover-color); /* Dunkleres Grün beim Hover */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.status-message.error {
+  color: var(--white);
+  background-color: var(--error-color);
+}
+
+/* === Styling für Datei-Upload === */
+.file-upload-group {
+  /* Keine speziellen Gruppen-Styles nötig, erbt von .form-group */
+}
+
+/* Das beschreibende Label über dem Button */
+.file-upload-group label[for="coverLetterInput"] {
+  display: block;
+  margin-bottom: 8px;
+  /* Erbt andere Label-Styles */
+}
+
+/* Verstecke das eigentliche <input type="file"> */
+.file-input-hidden {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+/* Style das Label, das als Button fungiert */
+.file-upload-button {
+  display: inline-block;
+  padding: 8px 15px;
+  background-color: #6c757d; /* Sekundärfarbe als Beispiel */
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+.file-upload-button:hover {
+  background-color: #5a6268;
+}
+
+/* Fokus-Stil für Barrierefreiheit */
+.file-input-hidden:focus + .file-upload-button {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Style für die Anzeige des Dateinamens */
+.file-name-display {
+  display: inline-block;
+  font-size: 0.9em;
+  color: var(--label-color);
+  vertical-align: middle;
+  max-width: calc(100% - 160px); /* Verhindert Überlaufen */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+@media (max-width: 768px) {
+  .app-container {
+    width: 95%; /* Take up more of the screen on mobile */
+    padding: 20px 15px;
+    margin: 10px auto;
+  }
+}
+
+/* === Erweiterte Statusmeldungen Styling === */
+.status-message {
+  margin-top: 15px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+  display: block;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.status-message.loading {
+  color: #656565;
+  background-color: #f7f7f7;
+  border-left: 4px solid #2196F3;
+  animation: pulse 1.5s infinite;
+}
+
+.status-message.error {
+  color: #fff;
+  background-color: #f44336;
+  border-left: 4px solid #d32f2f;
+}
+
+/* Button-Stil für Erfolgs-/Vorgangsmeldungen */
+.status-button {
+  display: inline-block;
+  margin-top: 15px;
+  padding: 14px 24px;
+  width: 100%;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.status-button:hover {
+  background-color: #43A047;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.status-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.status-button::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.2);
+  width: 60px;
+  height: 100%;
+  left: -100px;
+  top: 0;
+  transform: skewX(-15deg);
+  transition: all 0.6s ease;
+}
+
+.status-button:hover::after {
+  left: 110%;
+}
+
+/* Pulsiereffekt für "Loading"-Status */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
