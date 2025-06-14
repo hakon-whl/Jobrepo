@@ -2,156 +2,160 @@ from typing import List, Dict, Optional, Any
 import re
 import time
 import random
-# HIER IST DER WICHTIGE FIX - relativer Import statt direktem Import
-from .base_scraper import BaseScraper
-from projekt.backend.utils.html_parser import (
-    extract_attribute_from_selector,
-    extract_text_from_selector,
-)
+from .request_base_scraper import RequestBaseScraper
+from bs4 import BeautifulSoup
 
+class StepstoneScraper(RequestBaseScraper):
 
-class StepstoneScraper(BaseScraper):
     def __init__(self):
         super().__init__("StepStone")
 
-    def _extract_title_from_url_slug(self, url_slug: str) -> Optional[str]:
-        """
-        Extrahiert einen potenziellen Jobtitel aus dem URL-Slug.
-        Beispiel: "/stellenangebote--Softwareentwickler-Python-Berlin--12345" -> "Softwareentwickler Python Berlin"
-        Diese Logik basiert auf deiner `extract_between_delimiters`.
-        """
-        if not url_slug:
-            return None
-        match = re.search(r"--(.*?)(?:--\d+|$)", url_slug)
-        if match:
-            title_part = match.group(1)
-            return title_part.replace("-", " ").strip()
-        # Fallback, wenn das Muster nicht passt, aber ein Titel extrahiert werden soll
-        # Teile des Pfads könnten auch nützlich sein
-        parts = [p for p in url_slug.split("/") if p and not p.startswith("stellenangebote")]
-        if parts:
-            # Entferne IDs oder andere nicht-Titel Teile
-            cleaned_parts = [re.sub(r'--\d+$', '', p).replace('-', ' ') for p in parts]
-            return " ".join(cleaned_parts).strip()
-        return "Unbekannter Jobtitel"
-
-    def get_search_result_urls(
-            self, search_criteria: Dict[str, Any]
-    ) -> List[str]:
-        all_job_detail_urls = []
-        search_url_template = self.config.get("search_url_template")
-        job_url_selector = self.config.get("job_url").get("selector")
-        job_url_attribute = self.config.get("job_url").get("attribute")
-        job_content_selector = self.config.get("job_content_selector")
-        job_pages_selector = self.config.get("job_pages_selector")
-
-        if not (
-                search_url_template and job_url_selector and job_url_attribute and job_content_selector and job_pages_selector):
-            print(
-                "Fehlende Konfiguration für StepStone: URL-Template, Listen-Selektor oder Gesamtanzahl-Selektor."
-            )
-            return []
-
-        current_page = 1
-
-        params_for_page = {
-            "jobTitle": search_criteria.get("jobTitle", ""),
-            "location": search_criteria.get("location", ""),
-            "radius": search_criteria.get("radius", "20"),  # Standardwert
-            "discipline": search_criteria.get("discipline", ""),  # 'disciplineHierarchy' im Template
-            "seite": current_page,
-        }
-
-        # Erste Seite abrufen, um Gesamtanzahl der Jobs zu ermitteln
-        first_page_url = self._construct_search_url(
-            search_url_template, params_for_page
-        )
-        html_first_page = self._fetch_html(first_page_url)
-
-        if not html_first_page:
-            print("Konnte die erste Ergebnisseite nicht laden. Versuche es später erneut.")
-            return []
-
-        # Gesamtanzahl der Jobs extrahieren mit Fehlerbehandlung
-        total_jobs_pages = extract_text_from_selector(
-            html_first_page, job_pages_selector
-        )
-
-        if not total_jobs_pages:
-            print("Konnte die Gesamtzahl der Seiten nicht ermitteln. Verwende Standardwert von 1 Seite.")
-            total_jobs_pages = "1"
-
+    def get_search_result_urls(self, search_criteria: Dict[str, Any], page: int = 1) -> List[str]:
+        """Sammelt Job-URLs von StepStone Suchseiten"""
         try:
-            max_pages = min(int(total_jobs_pages), 3)  # Begrenze auf max. 3 Seiten für Tests
-        except ValueError:
-            print(f"Ungültiger Wert für Gesamtseiten: {total_jobs_pages}. Verwende 1.")
-            max_pages = 1
+            # Konfiguration validieren
+            required_configs = ["search_url_template", "job_url", "max_page_selector"]
+            for config_key in required_configs:
+                if not self.config.get(config_key):
+                    print(f"Fehlende Konfiguration für StepStone: {config_key}")
+                    return []
 
-        print(f"Verarbeite {max_pages} Seiten für StepStone...")
+            # URL-Parameter vorbereiten
+            params = {
+                "jobTitle": search_criteria.get("jobTitle", ""),
+                "location": search_criteria.get("location", ""),
+                "radius": search_criteria.get("radius", "20"),
+                "discipline": search_criteria.get("discipline", ""),
+                "seite": 1,  # Starte immer mit Seite 1
+            }
 
-        for page_num in range(1, max_pages + 1):
-            # Zwischen den Seitenaufrufen warten, um Rate-Limiting zu vermeiden
-            if page_num > 1:
-                sleep_time = random.uniform(3, 7)
-                print(f"Warte {sleep_time:.2f} Sekunden vor dem Laden der nächsten Seite...")
-                time.sleep(sleep_time)
-
-            print(f"Verarbeite Seite {page_num}/{max_pages}...")
-            params_for_page["seite"] = page_num
-            current_search_url = self._construct_search_url(
-                search_url_template, params_for_page
+            # === SCHRITT 1: ERSTE SEITE LADEN UND KOMPLETT ABARBEITEN ===
+            search_url = self._construct_search_url(
+                self.config.get("search_url_template"), params
             )
-
-            # Für Seite 1 haben wir den HTML-Inhalt bereits
-            html_content = html_first_page if page_num == 1 else self._fetch_html(current_search_url)
+            html_content = self.get_html_content(search_url)
 
             if not html_content:
-                print(f"Konnte Seite {page_num} nicht laden. Überspringe...")
-                continue
+                print("Konnte erste Suchseite nicht laden.")
+                return []
 
-            page_job_urls = extract_attribute_from_selector(
-                html_content, job_url_selector, job_url_attribute
-            )
+            soup = BeautifulSoup(html_content, 'lxml')
 
-            if not page_job_urls:
-                print(f"Keine Job-URLs auf Seite {page_num} gefunden.")
-                continue
+            # Max. Seitenzahl ermitteln
+            pages_element = soup.select_one(self.config.get("max_page_selector"))
+            if not pages_element:
+                print("Konnte maximale Seitenzahl nicht ermitteln.")
+                max_pages = 1
+            else:
+                try:
+                    max_pages_text = pages_element.get_text().rsplit(maxsplit=1)[-1]
+                    max_pages = int(max_pages_text)
+                except (ValueError, IndexError):
+                    print("Fehler beim Parsen der maximalen Seitenzahl.")
+                    max_pages = 1
 
-            print(f"Gefunden: {len(page_job_urls)} Job-URLs auf Seite {page_num}")
+            print(f"Verarbeite {max_pages} Seiten für StepStone...")
 
-            for job_url in page_job_urls:
-                if job_url.startswith("/"):
-                    full_url = self.base_url + job_url
-                    all_job_detail_urls.append(full_url)
-                elif job_url.startswith("http"):
-                    all_job_detail_urls.append(job_url)
+            all_job_urls = []
 
-        return list(set(all_job_detail_urls))
+            # URLs von der ERSTEN SEITE sammeln (HTML bereits geladen)
+            job_url_config = self.config.get("job_url", {})
+            selector = job_url_config.get("selector")
+            attribute = job_url_config.get("attribute")
 
-    def extract_job_details(
-            self, job_page_url: str
-    ) -> Optional[Dict[str, Any]]:
-        html_content = self._fetch_html(job_page_url)
-        if not html_content:
-            print(f"Konnte die Job-Detailseite {job_page_url} nicht laden.")
+            if selector and attribute:
+                job_elements = soup.select(selector)
+                page_urls = []
+
+                for element in job_elements:
+                    url = element.get(attribute)
+                    if url:
+                        if url.startswith("/"):
+                            url = self.base_url + url
+                        page_urls.append(url)
+
+                all_job_urls.extend(page_urls)
+                print(f"Seite 1: {len(page_urls)} Job-URLs gefunden")
+
+            # === SCHRITT 2: WEITERE SEITEN (2 bis max_pages) ABARBEITEN ===
+            if max_pages > 1:
+                for page_num in range(1, 7):
+                    # Wartezeit zwischen den Seiten
+                    sleep_time = random.uniform(3, 7)
+                    print(f"Warte {sleep_time:.2f} Sekunden vor Seite {page_num}...")
+                    time.sleep(sleep_time)
+
+                    # URL für die nächste Seite bauen
+                    params["seite"] = page_num
+                    current_url = self._construct_search_url(
+                        self.config.get("search_url_template"), params
+                    )
+
+                    # HTML der aktuellen Seite laden
+                    html_content = self.get_html_content(current_url)
+                    if not html_content:
+                        print(f"Konnte Seite {page_num} nicht laden.")
+                        continue
+
+                    # URLs von der aktuellen Seite sammeln
+                    soup = BeautifulSoup(html_content, 'lxml')
+
+                    if selector and attribute:
+                        job_elements = soup.select(selector)
+                        page_urls = []
+
+                        for element in job_elements:
+                            url = element.get(attribute)
+                            if url:
+                                if url.startswith("/"):
+                                    url = self.base_url + url
+                                page_urls.append(url)
+
+                        all_job_urls.extend(page_urls)
+                        print(f"Seite {page_num}: {len(page_urls)} Job-URLs gefunden")
+
+            print(f"✅ Insgesamt {len(all_job_urls)} Job-URLs gesammelt")
+            return all_job_urls
+
+        except Exception as e:
+            print(f"Fehler beim Sammeln der Job-URLs: {e}")
+            return []
+
+    def extract_job_details(self, job_page_url: str) -> Optional[Dict[str, Any]]:
+        """Extrahiert Job-Details von einer StepStone Job-Seite"""
+        try:
+            # HTML laden
+            html_content = self.get_html_content(job_page_url)  # ✅ Geändert
+            if not html_content:
+                print(f"Konnte Job-Seite nicht laden: {job_page_url}")
+                return None
+
+            # HTML parsen
+            soup = BeautifulSoup(html_content, 'lxml')
+
+            # Selektoren aus Config
+            content_selector = self.config.get("job_content_selector")
+            title_selector = self.config.get("job_titel_selector")
+
+            if not content_selector or not title_selector:
+                print("Job-Content oder Titel-Selektor fehlt in der Konfiguration.")
+                return None
+
+            # Elemente finden und Text extrahieren
+            content_element = soup.select_one(content_selector)
+            title_element = soup.select_one(title_selector)
+
+            raw_text = content_element.get_text(strip=True) if content_element else "Kein Text extrahierbar"
+            job_title = title_element.get_text(strip=True) if title_element else "Titel nicht extrahierbar"
+            job_title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', job_title) if job_title else ""
+
+            return {
+                "title": job_title,
+                "title_clean": job_title_clean,
+                "raw_text": raw_text,
+                "url": job_page_url,
+            }
+
+        except Exception as e:
+            print(f"Fehler beim Extrahieren von {job_page_url}: {e}")
             return None
-
-        content_selector = self.config.get("job_content_selector")
-        if not content_selector:
-            print("Detailseiten-Content-Selektor fehlt in der Konfiguration.")
-            return None
-
-        raw_text = extract_text_from_selector(html_content, content_selector)
-        url_path_slug = job_page_url.replace(self.base_url, "")
-        job_title = self._extract_title_from_url_slug(url_path_slug)
-
-        if not raw_text:
-            print(f"Konnte keinen Textinhalt für {job_page_url} extrahieren.")
-            # Manchmal ist der Titel wichtiger, also nicht sofort None zurückgeben
-            # return None
-
-        return {
-            "title": job_title or "Titel nicht extrahierbar",
-            "raw_text": raw_text or "Kein Text extrahierbar",
-            "url": job_page_url,
-        }

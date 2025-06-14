@@ -1,193 +1,120 @@
-import time
-import os
 from abc import ABC
-
+from typing import List, Dict, Optional, Any
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
-from projekt.backend.core.config import get_site_config_by_string, Site, USER_AGENTS
+from projekt.backend.core.config import get_site_config_by_string
 
-class SeleniumBaseClient(ABC):
-    def __init__(self, headless: bool = False):
+
+class SeleniumBaseScraper(ABC):  # Besserer Name
+    """Basis-Klasse für Selenium-basierte Web-Scraper mit Lazy Loading"""
+
+    def __init__(self, site_name: str, headless: bool = True):
         self.driver = None
         self.headless = headless
+        self.site_name_str = site_name
+        self.config = get_site_config_by_string(site_name)
+        self.base_url = self.config.get("base_url", "")
 
-    def _setup_driver(
-        self,
-        mobile_mode: bool = False,
-        width: int = 1280,
-        height: int = 800
-    ) -> None:
-        chrome_options = Options()
+    def _construct_search_url(self, template_path: str, params: Dict[str, Any]) -> str:
+        """Ersetzt Platzhalter in einem URL-Template mit Parametern"""
+        if not template_path:
+            return ""
 
-        # Konfiguration für den Headless-Modus
-        if self.headless:
-            chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--disable-gpu")  # Empfohlen für Headless
-            chrome_options.add_argument("--no-sandbox")  # Für Linux/Docker-Umgebungen
-            chrome_options.add_argument("--disable-dev-shm-usage")  # Für Linux/Docker
-            chrome_options.add_argument(f"--window-size={width},{height}")
+        path = template_path
+        for key, value in params.items():
+            path = path.replace(f"{{{key}}}", str(value))
+        return self.base_url + path
 
-        if mobile_mode:
-            mobile_emulation = {
-                "deviceMetrics": {
-                    "width": width,
-                    "height": height,
-                    "pixelRatio": 2.75
-                },
-                "userAgent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 "
-                "Mobile Safari/537.36"
-            }
-            chrome_options.add_experimental_option(
-                "mobileEmulation",
-                mobile_emulation
-            )
+    def get_html_content(self) -> Optional[str]:
+        """Gibt den HTML-Inhalt der aktuellen Seite zurück"""
+        if not self.driver:
+            print("Kein aktiver Client für HTML-Export")
+            return None
 
         try:
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(
-                service=service,
-                options=chrome_options
-            )
-
-            self.driver.set_window_size(width, height)
-            time.sleep(1)
+            html_content = self.driver.page_source
+            print("HTML-Inhalt erfolgreich exportiert")
+            return html_content
         except Exception as e:
-            self.driver = None
+            print(f"Fehler beim HTML-Export: {e}")
+            return None
 
     def open_client(self, width: int = 400, height: int = 900) -> None:
+        """Öffnet den Selenium-Client falls noch nicht aktiv"""
         if self.driver:
             return
         self._setup_driver(mobile_mode=False, width=width, height=height)
 
-    def open_mobile_website(self, url: str, width: int = 393,
-                            height: int = 851) -> None:
-        if self.driver:
-            print("Ein Client ist bereits aktiv. Lade URL im bestehenden Client.")
-            try:
-                self.driver.get(url)
-                print(f"Webseite '{url}' erfolgreich geladen.")
-            except Exception as e:
-                print(f"Fehler beim Laden der Webseite '{url}': {e}")
-            return
-
-        print(
-            f"Öffne Webseite '{url}' im Handy-Format ({width}x{height} Pixel)..."
-        )
-        self._setup_driver(mobile_mode=True, width=width, height=height)
-        if self.driver:
-            try:
-                self.driver.get(url)
-                print(f"Webseite '{url}' erfolgreich geladen im Handy-Format.")
-            except Exception as e:
-                print(f"Fehler beim Laden der Webseite '{url}': {e}")
-        else:
-            print(
-                "Webseite konnte nicht geladen werden, da der Client nicht "
-                "gestartet werden konnte."
-            )
-
-    def scroll_to_bottom(self, retries: int = 1, delay: float = 0.5) -> None:
-
-        if not self.driver:
-            print("Kein aktiver Client zum Scrollen vorhanden.")
-            return
-
-        print(f"Scrolle {retries} Mal nach ganz unten...")
-        for i in range(retries):
-            self.driver.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);"
-            )
-            print(f"Scroll-Versuch {i + 1} abgeschlossen.")
-            if i < retries - 1:
-                time.sleep(delay)
-        print("Scrollen beendet.")
-
-    def get_html_content(self) -> str | None:
-        """
-        Exportiert den vollständigen HTML-Inhalt der aktuell geladenen Seite.
-
-        Returns:
-            str | None: Der HTML-Quellcode der Seite als String oder None,
-                        wenn kein Client aktiv ist.
-        """
-        if not self.driver:
-            print("Kein aktiver Client, HTML-Inhalt kann nicht abgerufen werden.")
-            return None
-        try:
-            html_content = self.driver.page_source
-            print("HTML-Inhalt erfolgreich abgerufen.")
-            return html_content
-        except Exception as e:
-            print(f"Fehler beim Abrufen des HTML-Inhalts: {e}")
-            return None
-
     def close_client(self) -> None:
-        """
-        Schließt den Selenium WebDriver (den Browser).
-        """
-        if self.driver:
-            print("Schließe Selenium-Client...")
-            self.driver.quit()
-            self.driver = None
-            print("Client erfolgreich geschlossen.")
-        else:
-            print("Kein aktiver Client zum Schließen vorhanden.")
-
-
-# --- Beispiel für die Verwendung der Klasse ---
-if __name__ == "__main__":
-    client_desktop = SeleniumBaseClient(headless=True) # Headless für schnellere Verarbeitung
-    try:
-        client_desktop.open_client(width=400, height=900)
-        if client_desktop.driver:
-            url_desktop = (
-                "https://www.xing.com/jobs/search?"
-                "keywords=Softwareentwickler&location=M%C3%BCnchen&radius=25"
-            )
-            print(f"Lade Desktop-Webseite: {url_desktop}")
-            client_desktop.driver.get(url_desktop)
-            print("Warte 5 Sekunden, damit Inhalte geladen werden...")
-            time.sleep(5)
-            client_desktop.scroll_to_bottom(retries=4, delay=3)
-            print("Warte weitere 5 Sekunden nach dem Scrollen...")
-            time.sleep(5)
-
-            # --- HTML-Inhalt abrufen und mit BeautifulSoup parsen ---
-            html_source = client_desktop.get_html_content()
-            job_urls = []
-            base_xing_job_url = "https://www.xing.com"
-
-            if html_source:
-                soup = BeautifulSoup(html_source, "html.parser")
-
-                # Wir suchen nach einem 'a'-Tag mit dem Attribut 'data-testid="job-search-result"'
-                job_links = soup.find_all(
-                    "a",
-                    attrs={"data-testid": "job-search-result"}
-                )
-
-                print(f"\n--- Gefundene Job-Links ({len(job_links)}): ---")
-                for link in job_links:
-                    href = link.get("href")
-                    if href:
-                        # Füge die Basis-URL hinzu, falls der href relativ ist
-                        if href.startswith("/"):
-                            full_url = base_xing_job_url + href
-                        else:
-                            full_url = href # Falls es bereits eine absolute URL ist
-                        job_urls.append(full_url)
-                        print(full_url) # Gib die URL sofort aus
-
-                print("\nAlle Job-URLs wurden extrahiert.")
-                # Sie können die Liste `job_urls` nun weiterverwenden.
+            """Schließt den Selenium WebDriver"""
+            if self.driver:
+                print(f"Schließe Selenium-Client für {self.site_name_str}...")
+                self.driver.quit()
+                self.driver = None
+                print("Client erfolgreich geschlossen")
             else:
-                print("Konnte keinen HTML-Inhalt zum Parsen abrufen.")
+                print("Kein aktiver Client zum Schließen vorhanden")
 
-    finally:
-        client_desktop.close_client()
+    def _setup_driver(self, mobile_mode: bool = False, width: int = 400, height: int = 900) -> None:
+        """Konfiguriert und startet den Chrome WebDriver"""
+        chrome_options = Options()
 
-    print("\nBeispiel beendet.")
+        # Headless-Konfiguration
+        if self.headless:
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument(f"--window-size={width},{height}")
+
+        # Mobile-Emulation
+        if mobile_mode:
+            mobile_emulation = {
+                "deviceMetrics": {"width": width, "height": height, "pixelRatio": 2.75},
+                "userAgent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36"
+            }
+            chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
+
+        try:
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            self.driver.set_window_size(width, height)
+            time.sleep(1)
+            print(f"Chrome WebDriver erfolgreich gestartet für {self.site_name_str}")
+        except Exception as e:
+            print(f"Fehler beim Starten des WebDrivers: {e}")
+            self.driver = None
+
+    def load_url(self, url: str) -> bool:
+        """Lädt eine URL im Browser"""
+        if not self.driver:
+            self.open_client()
+
+        if not self.driver:
+            print(f"Kein aktiver Client zum Laden von {url}")
+            return False
+
+        try:
+            self.driver.get(url)
+            print(f"URL erfolgreich geladen: {url}")
+            return True
+        except Exception as e:
+            print(f"Fehler beim Laden der URL {url}: {e}")
+            return False
+
+    def scroll_to_bottom(self) -> None:
+        """Scrollt mehrfach zum Ende der Seite"""
+        if not self.driver:
+            print("Kein aktiver Client zum Scrollen vorhanden")
+            return
+
+        for i in range(self.config.get("selenium_scroll_iterations")):
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            print(f"Scroll-Versuch {i + 1} abgeschlossen")
+            if i < self.config.get("selenium_scroll_iterations") - 1:
+                time.sleep(self.config.get("selenium_scroll_wait_time"))
+        print("Scrollen beendet")
+

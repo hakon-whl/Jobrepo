@@ -6,14 +6,13 @@ from .selenium_base_scraper import SeleniumBaseScraper
 from bs4 import BeautifulSoup
 
 
-class XingScraper(SeleniumBaseScraper):
+class StellenanzeigenScraper(SeleniumBaseScraper):
     """XING Job-Scraper mit Selenium + BeautifulSoup"""
 
     def __init__(self):
-        super().__init__("Xing")
+        super().__init__("Stellenanzeigen")
 
     def get_search_result_urls(self, search_criteria: Dict[str, Any]) -> List[str]:
-        """Sammelt Job-URLs von der XING-Suchseite"""
         try:
             # Client initialisieren
             self.open_client(width=400, height=900)
@@ -27,6 +26,7 @@ class XingScraper(SeleniumBaseScraper):
                 "location": search_criteria.get("location", ""),
                 "radius": search_criteria.get("radius", "20"),
             }
+
 
             # Suchseite laden
             search_url = self._construct_search_url(
@@ -49,6 +49,7 @@ class XingScraper(SeleniumBaseScraper):
 
             # Job-URLs direkt extrahieren
             soup = BeautifulSoup(html_content, 'html.parser')
+            print(soup)
 
             job_url_config = self.config.get("job_url", {})
             selector = job_url_config.get("selector")
@@ -59,6 +60,7 @@ class XingScraper(SeleniumBaseScraper):
                 return []
 
             job_elements = soup.select(selector)
+            print(job_elements)
             job_urls = []
 
             for element in job_elements:

@@ -7,7 +7,6 @@ import re
 def extract_attribute_from_selector(
         html_content: str, selector: str, attribute: str = "href"
 ) -> List[str]:
-    """Extrahiert bestimmte Inhalte (Attribute wie eine Url etc.) aus einem HMTL Objekt"""
     urls = []
     if not html_content:
         return urls
@@ -27,7 +26,6 @@ def extract_attribute_from_selector(
 def extract_text_from_selector(
         html_content: str, selector: str
 ) -> Optional[str]:
-    """Extrahiert den Textinhalt eines Elements, das dem Selektor entspricht."""
     if not html_content:
         return None
 
@@ -36,14 +34,10 @@ def extract_text_from_selector(
         target_element = soup.select_one(selector)
         if target_element:
             raw_text = target_element.get_text(separator="\n", strip=True)
-            # Normalisierung des Textes
             normalized_text = unicodedata.normalize("NFC", raw_text)
-            # Entferne doppelte Leerzeichen und Zeilenumbrüche
             cleaned_text = re.sub(r'\s+', ' ', normalized_text)
-            # Entferne unnötige Zeichen
             cleaned_text = re.sub(r'[^\S\r\n]+', ' ', cleaned_text)
             return cleaned_text.strip()
     except Exception as e:
         print(f"Fehler beim Extrahieren von Text mit Selektor '{selector}': {e}")
-
     return None

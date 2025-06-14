@@ -7,23 +7,36 @@ import PyPDF2
 
 class PdfUtils:
     @staticmethod
-    def markdown_to_pdf(markdown_string, job_titel, link, rating):
-        """Konvertiert Markdown zu PDF und fügt optional einen Link hinzu."""
+    def markdown_to_pdf(markdown_string, path, job_titel, link, rating, anschreiben=None):
         try:
-            cleaned_markdown = re.sub(r'```markdown|```', '', markdown_string)
+            cleaned_job_description = re.sub(r'```markdown|```', '', markdown_string).strip()
+            cleaned_job_anschreiben = re.sub(r'```markdown|```', '', anschreiben).strip()
+
+
+            all_content_blocks = []
+
+            if rating is not None:
+                all_content_blocks.append(f"## {str(rating).strip()} von 10")
+
+            if job_titel:
+                all_content_blocks.append(f"## {job_titel.strip()}")
+
+            if cleaned_job_description:
+                all_content_blocks.append(cleaned_job_description)
+
+            if cleaned_job_anschreiben and cleaned_job_anschreiben.strip():
+                all_content_blocks.append("## Anschreiben\n\n" + cleaned_job_anschreiben.strip())
 
             link_text = "Original Job Posting"
-            link_markdown = f"\n\n[{link_text}]({link})"
-            cleaned_markdown += link_markdown
+            link_markdown = f"[{link_text}]({link})"
+            all_content_blocks.append(link_markdown)
 
-            cleaned_markdown = f"## {job_titel}" + cleaned_markdown
+            final_markdown_input = "\n\n".join(filter(None, all_content_blocks))
 
-            cleaned_markdown = f"## 1 von {rating}" + cleaned_markdown
-
-            html_string = markdown.markdown(cleaned_markdown)
+            html_string = markdown.markdown(final_markdown_input)
             source_html = io.BytesIO(html_string.encode('UTF-8'))
 
-            with open(job_titel, "w+b") as output_file:
+            with open(path, "w+b") as output_file:
                 pisa_status = pisa.pisaDocument(
                     source_html,
                     dest=output_file,
@@ -41,9 +54,9 @@ class PdfUtils:
             print(f"Ein Fehler ist in markdown_to_pdf aufgetreten: {e}")
             return False
 
+# Der Rest deiner Klassen und Hauptlogik bleibt unverändert.
     @staticmethod
     def get_rating_from_filename(filename):
-        """Extrahiert das Rating aus einem Dateinamen (Format: 'XX_name.pdf')."""
         match = re.search(r'^(\d+)_', filename)
         if match:
             try:
@@ -55,7 +68,7 @@ class PdfUtils:
 
     @staticmethod
     def merge_pdfs_by_rating(source_dir, output_filepath):
-        """Fügt PDFs nach Rating sortiert zusammen."""
+
         print(f"Beginne Zusammenführung von PDFs aus '{source_dir}' nach '{output_filepath}'...")
 
         if not os.path.isdir(source_dir):
