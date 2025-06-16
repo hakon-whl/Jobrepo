@@ -1,4 +1,3 @@
-// src/components/ApplicationForm.js
 import React, { useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import { JOB_SITES, SKILLS, DISCIPLINES } from "../constants/enums";
@@ -67,37 +66,6 @@ function ApplicationForm({
           </select>
         </div>
 
-        {formData.location && selectedCityData && (
-          <div className="form-group">
-            <label htmlFor="selectedPlz">Bereich in {selectedCityLabel}:</label>
-            <select
-              id="selectedPlz"
-              name="selectedPlz"
-              value={formData.selectedPlz}
-              onChange={onChange}
-              required
-              aria-required="true"
-            >
-              <option value="" disabled>
-                Bitte wählen...
-              </option>
-              <option value="all">{selectedCityLabel}</option>
-
-              {selectedCityData.plzs && selectedCityData.plzs.length > 0 ? (
-                selectedCityData.plzs.map((plz) => (
-                  <option key={plz} value={plz}>
-                    PLZ {plz}
-                  </option>
-                ))
-              ) : (
-                <option value="no_plz" disabled>
-                  Keine spezifischen PLZs verfügbar
-                </option>
-              )}
-            </select>
-          </div>
-        )}
-
         <div className="form-group">
           <label htmlFor="discipline">Disziplin:</label>
           <select
@@ -117,11 +85,7 @@ function ApplicationForm({
 
         <div className="form-group">
           <label htmlFor="radius">
-            Radius: {formData.radius} km (Basis:{" "}
-            {formData.selectedPlz && formData.selectedPlz !== "all"
-              ? `PLZ ${formData.selectedPlz}`
-              : selectedCityLabel}
-            )
+            Radius: {formData.radius} km (Basis: {selectedCityLabel})
           </label>
           <input
             type="range"
@@ -132,7 +96,7 @@ function ApplicationForm({
             step="10"
             value={formData.radius}
             onChange={onSliderChange}
-            disabled={!formData.location || !formData.selectedPlz}
+            disabled={!formData.location}
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow={formData.radius}
@@ -265,13 +229,11 @@ ApplicationForm.propTypes = {
     PropTypes.shape({
       value: PropTypes.string.isRequired,
       label: PropTypes.string.isRequired,
-      plzs: PropTypes.arrayOf(PropTypes.string).isRequired,
     }),
   ).isRequired,
   selectedCityData: PropTypes.shape({
     value: PropTypes.string,
     label: PropTypes.string,
-    plzs: PropTypes.arrayOf(PropTypes.string),
   }),
 };
 

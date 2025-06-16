@@ -1,20 +1,13 @@
-// src/App.js
 import React, { useState, useCallback, useMemo } from "react";
 import ApplicationForm from "./components/ApplicationForm";
 import { submitApplicationData } from "./services/api";
 import "./App.css";
-import {
-  LOCATIONS_DATA,
-  JOB_SITES,
-  SKILLS,
-  DISCIPLINES,
-} from "./constants/enums";
+import { LOCATIONS_DATA } from "./constants/enums";
 import { extractTextFromPdfBlob } from "./utils/pdfToTxt";
 
 const initialFormData = {
   jobTitle: "",
   location: "",
-  selectedPlz: "",
   discipline: "",
   radius: 20,
   jobSites: "",
@@ -30,12 +23,10 @@ function App() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
-  // --- handleChange angepasst ---
   const handleChange = useCallback((event) => {
     const { name, value, type } = event.target;
 
     if (type === "checkbox" && name === "skills") {
-      // Skills-Logik bleibt gleich
       const skillValue = value;
       setFormData((prevData) => ({
         ...prevData,
@@ -43,16 +34,7 @@ function App() {
           ? prevData.skills.filter((skill) => skill !== skillValue)
           : [...prevData.skills, skillValue],
       }));
-    } else if (name === "location") {
-      // Wenn die Stadt geändert wird, PLZ zurücksetzen
-      setFormData((prevData) => ({
-        ...prevData,
-        location: value,
-        selectedPlz: "", // Wichtig: PLZ zurücksetzen!
-        radius: prevData.radius, // Radius beibehalten oder auch zurücksetzen? Hier beibehalten.
-      }));
     } else {
-      // Alle anderen Felder (inkl. selectedPlz) normal aktualisieren
       setFormData((prevData) => ({
         ...prevData,
         [name]: value,
@@ -68,7 +50,6 @@ function App() {
   }, []);
 
   const handleFileChange = useCallback((event) => {
-    // ... (unverändert)
     const files = event.target.files;
     setSubmitStatus(null);
     if (files && files.length > 0) {
@@ -86,25 +67,27 @@ function App() {
     }
   }, []);
 
-  // --- handleSubmit angepasst (nur dataToSend) ---
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus("loading");
     setSubmitMessage("Prüfe Daten und verarbeite PDFs...");
 
+    // PDF zu Text Konvertierung
     const extractedPdfsData = {};
-    // ... (PDF Extraktion bleibt gleich) ...
+    
     if (uploadedFiles && uploadedFiles.length > 0) {
       console.log(`Starte Extraktion für ${uploadedFiles.length} PDF(s)...`);
       try {
+        setSubmitMessage(`Verarbeite ${uploadedFiles.length} PDF-Datei(en)...`);
+        
         await Promise.all(
           uploadedFiles.map(async (file) => {
             try {
               console.log(` - Extrahiere ${file.name}`);
               const text = await extractTextFromPdfBlob(file);
               extractedPdfsData[file.name] = text;
-              console.log(`   -> ${file.name} erfolgreich extrahiert.`);
+              console.log(`   -> ${file.name} erfolgreich extrahiert (${text.length} Zeichen).`);
             } catch (fileError) {
               console.error(
                 `Fehler beim Extrahieren von ${file.name}:`,
@@ -114,7 +97,9 @@ function App() {
             }
           }),
         );
-        console.log("Alle PDFs erfolgreich verarbeitet (oder Fehler notiert).");
+        
+        console.log("Alle PDFs erfolgreich verarbeitet.");
+        console.log("Extrahierte PDF-Inhalte:", Object.keys(extractedPdfsData));
         setSubmitMessage("PDFs verarbeitet, sende Daten...");
       } catch (overallError) {
         console.error("Fehler während der PDF-Verarbeitung:", overallError);
@@ -130,16 +115,21 @@ function App() {
       setSubmitMessage("Sende Daten (ohne PDF-Inhalte)...");
     }
 
-    // Datenobjekt für das Backend: Enthält jetzt location und selectedPlz
+    // Datenobjekt für das Backend
     const dataToSend = {
-      ...formData, // Enthält jobTitle, location, selectedPlz, discipline, radius, etc.
-      skills: formData.skills, // Explizit, falls nicht in ...formData überschrieben
-      pdfContents: extractedPdfsData,
+      ...formData,
+      pdfContents: extractedPdfsData, // Dict mit {dateiname: text}
     };
 
-    // Backend-Aufruf bleibt gleich
     try {
-      console.log("Sende folgendes Objekt an das Backend:", dataToSend);
+      console.log("Sende folgendes Objekt an das Backend:", {
+        ...dataToSend,
+        pdfContents: Object.keys(extractedPdfsData).reduce((acc, key) => {
+          acc[key] = `${extractedPdfsData[key].substring(0, 100)}...`; // Nur ersten 100 Zeichen für Log
+          return acc;
+        }, {})
+      });
+      
       const responseData = await submitApplicationData(dataToSend);
       setSubmitStatus("success");
       setSubmitMessage(responseData.message || "Daten erfolgreich übermittelt!");
@@ -155,7 +145,7 @@ function App() {
     }
   };
 
-  // Memoized Wert für die aktuell ausgewählte Stadt (Objekt)
+  // Memoized Wert für die aktuell ausgewählte Stadt
   const selectedCityData = useMemo(() => {
     return LOCATIONS_DATA.find((loc) => loc.value === formData.location);
   }, [formData.location]);
@@ -173,18 +163,16 @@ function App() {
             isSubmitting={isSubmitting}
             onFileChange={handleFileChange}
             selectedFiles={uploadedFiles}
-            // Übergeben Sie die neuen Daten und das gefundene Stadtobjekt
             locationsData={LOCATIONS_DATA}
             selectedCityData={selectedCityData}
           />
 
-          {/* Statusanzeige mit verbesserter Darstellung */}
+          {/* Statusanzeige */}
           {submitStatus && (
             submitStatus === "success" ? (
               <button
                 className="status-button"
                 onClick={() => {
-                  // Optional: Formular zurücksetzen oder andere Aktionen
                   setFormData(initialFormData);
                   setSubmitStatus(null);
                   setUploadedFiles([]);

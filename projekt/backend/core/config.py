@@ -78,7 +78,7 @@ SITE_CONFIGS = {
         "selenium_scroll_iterations": 8,
         "selenium_scroll_wait_time": 2,
         "job_url": {
-            "selector": "a[data-testid='job-search-result']",
+            "selector": 'article[data-testid="job-search-result"] a',
             "attribute": "href"
         },
         "job_content_selector": "div[data-testid='expandable-content']",
@@ -108,11 +108,11 @@ SITE_CONFIGS = {
         "selenium_scroll_iterations": 8,
         "selenium_scroll_wait_time": 2,
         "job_url": {
-            "selector": "a[class='sc-a39eecef-24 Zcren']",
-            "attribute": "href"
+            "selector": "script_regex",
+            "attribute": "script",
+            "regex_pattern": r'"link":"https://www.stellenanzeigen.de(/job/[^"]+)"'
         },
-        "job_content_selector": "div[class='inner']",
-        "job_titel_selector": "h1[class='sc-a39eecef-23 kMhFgV']",
+        "job_content_selector": "script[type='application/ld+json']",
     }
 }
 
