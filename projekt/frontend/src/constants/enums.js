@@ -33,10 +33,7 @@ export const LOCATIONS_DATA = [
 
 export const JOB_SITES = [
   { value: "StepStone", label: "StepStone" },
-  { value: "LinkedIn", label: "LinkedIn" },
   { value: "Xing", label: "Xing" },
-  { value: "Jobware", label: "Jobware" },
-  { value: "Jooble", label: "Jooble" },
   { value: "Stellenanzeigen.de", label: "Stellenanzeigen.de" },
 ];
 
