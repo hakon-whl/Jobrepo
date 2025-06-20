@@ -1,10 +1,11 @@
 import json
-from typing import List, Dict, Optional, Any
+from typing import List, Optional
 import re
 import time
 import random
 from .selenium_base_scraper import SeleniumBaseScraper
 from bs4 import BeautifulSoup
+from projekt.backend.core.models import JobDetails, SearchCriteria, JobSource
 
 
 class StellenanzeigenScraper(SeleniumBaseScraper):
@@ -13,7 +14,7 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
     def __init__(self):
         super().__init__("Stellenanzeigen")
 
-    def get_search_result_urls(self, search_criteria: Dict[str, Any]) -> List[str]:
+    def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
         """Sammelt Job-URLs von der Stellenanzeigen.de-Suchseite"""
         try:
             # Client initialisieren
@@ -22,16 +23,10 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
                 print("Client konnte nicht geöffnet werden")
                 return []
 
-            # Suchparameter vorbereiten
-            search_params = {
-                "jobTitle": search_criteria.get("jobTitle", ""),
-                "location": search_criteria.get("location", ""),
-                "radius": search_criteria.get("radius", "20"),
-            }
-
-            # Suchseite laden
+            # Suchseite laden mit SearchCriteria
             search_url = self._construct_search_url(
-                self.config.get("search_url_template"), search_params
+                self.config.get("search_url_template"),
+                search_criteria.to_stellenanzeigen_params()
             )
 
             if not self.load_url(search_url):
@@ -81,12 +76,8 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
             print(f"Fehler beim Sammeln der Job-URLs: {e}")
             return []
 
-    def extract_job_details(self, job_page_url: str) -> Optional[Dict[str, Any]]:
-        """
-        Extrahiert Job-Details von einer Stellenanzeigen.de Job-Seite
-        mithilfe der in der Konfiguration definierten Selektoren.
-        Erwartet, dass der 'job_content_selector' auf ein JSON-LD Script-Tag zeigt.
-        """
+    def extract_job_details(self, job_page_url: str) -> Optional[JobDetails]:
+        """Extrahiert Job-Details von einer Stellenanzeigen.de Job-Seite"""
         try:
             if not self.driver:
                 self.open_client(width=400, height=900)
@@ -106,38 +97,37 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
 
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # 1. Lade den Selektor aus der Konfigurationsdatei
+            # Lade den Selektor aus der Konfigurationsdatei
             content_selector = self.config.get("job_content_selector")
             if not content_selector:
                 print("Fehler: 'job_content_selector' nicht in der Konfiguration gefunden.")
                 return None
 
-            # 2. Finde das Script-Tag mit dem konfigurierten Selektor
+            # Finde das Script-Tag mit dem konfigurierten Selektor
             json_ld_script_element = soup.select_one(content_selector)
 
             if not json_ld_script_element:
                 print(f"Kein Element für Selektor '{content_selector}' auf {job_page_url} gefunden.")
                 return None
 
-            # 3. Lade den Inhalt des Scripts als JSON
+            # Lade den Inhalt des Scripts als JSON
             job_data = json.loads(json_ld_script_element.string)
 
-            # 4. Extrahiere Titel und Beschreibung aus den JSON-Daten
+            # Extrahiere Titel und Beschreibung aus den JSON-Daten
             job_title = job_data.get("title", "Titel nicht extrahierbar")
             description_html = job_data.get("description", "")
 
-            # 5. Konvertiere die HTML-Beschreibung in reinen Text
+            # Konvertiere die HTML-Beschreibung in reinen Text
             description_soup = BeautifulSoup(description_html, 'html.parser')
             raw_text = description_soup.get_text(separator=' ', strip=True)
 
-            job_title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', job_title) if job_title else ""
-
-            return {
-                "title": job_title,
-                "title_clean": job_title_clean,
-                "raw_text": raw_text,
-                "url": job_page_url,
-            }
+            return JobDetails(
+                title=job_title,
+                title_clean="",  # Wird in __post_init__ gesetzt
+                raw_text=raw_text,
+                url=job_page_url,
+                source_site=JobSource.STELLENANZEIGEN
+            )
 
         except json.JSONDecodeError:
             print(f"Fehler beim Parsen der JSON-Daten von {job_page_url}")

@@ -60,82 +60,57 @@ export const DISCIPLINES = [
   { value: "Groß- und Einzelhandel", label: "Groß- und Einzelhandel" },
 ];
 
-export const SKILLS = [
+// *** BASIS 20 STANDARD-SKILLS (können nicht gelöscht werden) ***
+export const BASE_SKILLS = [
+  { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "react", label: "React" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "sql", label: "SQL" },
+  { value: "git", label: "Git" },
+  { value: "nodejs", label: "Node.js" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "docker", label: "Docker" },
+  { value: "cloud-basics", label: "Cloud Computing (AWS/Azure/GCP)" },
   { value: "agile", label: "Agile Methoden" },
   { value: "angular", label: "Angular" },
-  { value: "ansible", label: "Ansible" },
-  { value: "aws-advanced", label: "AWS Vertiefung (EC2, S3, Lambda, RDS etc.)" },
-  { value: "azure-advanced", label: "Azure Vertiefung (VMs, Blob Storage, Functions etc.)" },
-  { value: "big-data-tech", label: "Big Data Technologien (Spark, Hadoop)" },
-  { value: "business-analyse", label: "Business Analyse" },
-  { value: "c-plus-plus", label: "C++" },
   { value: "c-sharp", label: "C#" },
-  { value: "change-management", label: "Change Management" },
-  { value: "ci-cd", label: "CI/CD (Jenkins, GitLab CI, GitHub Actions)" },
-  { value: "cloud-basics", label: "Cloud Computing Grundlagen (AWS, Azure, GCP)" },
-  { value: "crm-systems", label: "CRM-Systeme Allgemein" },
-  { value: "css", label: "CSS" },
-  { value: "cyber-security", label: "Cyber Security Grundlagen" },
-  { value: "cypress", label: "Cypress" },
-  { value: "data-analyse", label: "Datenanalyse Grundlagen" },
-  { value: "data-visualization", label: "Datenvisualisierung (z.B. Tableau, Power BI)" },
-  { value: "datenmodellierung", label: "Datenmodellierung" },
-  { value: "django", label: "Django (Python)" },
-  { value: "docker", label: "Docker" },
-  { value: "erp-systems", label: "ERP-Systeme Allgemein" },
-  { value: "excel-advanced", label: "Excel für Fortgeschrittene" },
-  { value: "flask", label: "Flask (Python)" },
-  { value: "flutter", label: "Flutter" },
-  { value: "gcp-advanced", label: "GCP Vertiefung (Compute Engine, Cloud Storage etc.)" },
-  { value: "git", label: "Git" },
-  { value: "go", label: "Go" },
-  { value: "html", label: "HTML" },
-  { value: "it-consulting", label: "IT-Consulting Grundlagen" },
-  { value: "java", label: "Java" },
-  { value: "javascript", label: "JavaScript" },
-  { value: "jest", label: "Jest" },
-  { value: "jira", label: "Jira/Confluence" },
-  { value: "junit-testng", label: "JUnit/TestNG" },
-  { value: "kommunikation", label: "Kommunikationsfähigkeit" },
-  { value: "kotlin", label: "Kotlin" },
-  { value: "kubernetes", label: "Kubernetes" },
-  { value: "linux", label: "Linux/Unix Grundlagen" },
-  { value: "machine-learning", label: "Machine Learning Konzepte & Algorithmen" },
-  { value: "mobile-dev-android", label: "Mobile Entwicklung Android (Kotlin/Java)" },
-  { value: "mobile-dev-ios", label: "Mobile Entwicklung iOS (Swift)" },
-  { value: "mongodb", label: "MongoDB" },
-  { value: "mysql", label: "MySQL Administration/Optimierung" },
-  { value: "nextjs", label: "Next.js" },
-  { value: "nodejs", label: "Node.js" },
-  { value: "nosql", label: "NoSQL Datenbankkonzepte" },
-  { value: "numpy", label: "NumPy" },
-  { value: "pandas", label: "Pandas" },
-  { value: "php", label: "PHP" },
-  { value: "postgresql", label: "PostgreSQL Administration/Optimierung" },
-  { value: "problemlösung", label: "Problemlösungskompetenz" },
-  { value: "produktmanagement", label: "Produktmanagement Grundlagen" },
+  { value: "machine-learning", label: "Machine Learning" },
+  { value: "mysql", label: "MySQL/PostgreSQL" },
+  { value: "linux", label: "Linux/Unix" },
+  { value: "ci-cd", label: "CI/CD" },
   { value: "projektmanagement", label: "Projektmanagement" },
-  { value: "prozessmanagement", label: "Geschäftsprozessmanagement (BPMN)" },
-  { value: "python", label: "Python" },
-  { value: "pytorch", label: "PyTorch" },
-  { value: "react", label: "React" },
-  { value: "react-native", label: "React Native" },
-  { value: "redis", label: "Redis" },
-  { value: "requirements-engineering", label: "Requirements Engineering" },
-  { value: "rust", label: "Rust" },
-  { value: "salesforce", label: "Salesforce Grundlagen" },
-  { value: "sap", label: "SAP Grundlagen / Module" },
-  { value: "scikit-learn", label: "Scikit-learn" },
-  { value: "selenium", label: "Selenium" },
-  { value: "spring", label: "Spring Framework (Java)" },
-  { value: "sql", label: "SQL" },
-  { value: "svelte", label: "Svelte" },
-  { value: "swift", label: "Swift" },
-  { value: "teamarbeit", label: "Teamfähigkeit" },
-  { value: "tensorflow", label: "TensorFlow" },
-  { value: "terraform", label: "Terraform" },
-  { value: "testing", label: "Software Testing Grundlagen" },
-  { value: "typescript", label: "TypeScript" },
-  { value: "ui-ux-basics", label: "UI/UX Design Grundlagenverständnis" },
-  { value: "vuejs", label: "Vue.js" },
 ];
+
+// *** SKILLS-MANAGEMENT FUNKTIONEN ***
+
+// Lade Custom Skills aus localStorage
+export const loadCustomSkillsFromStorage = () => {
+  try {
+    const storedSkills = localStorage.getItem('customSkills');
+    return storedSkills ? JSON.parse(storedSkills) : [];
+  } catch (error) {
+    console.error('Fehler beim Laden der Custom Skills:', error);
+    return [];
+  }
+};
+
+// Speichere Custom Skills in localStorage
+export const saveCustomSkillsToStorage = (customSkills) => {
+  try {
+    localStorage.setItem('customSkills', JSON.stringify(customSkills));
+  } catch (error) {
+    console.error('Fehler beim Speichern der Custom Skills:', error);
+  }
+};
+
+// Kombiniere Base Skills mit Custom Skills
+export const getAllSkills = () => {
+  const customSkills = loadCustomSkillsFromStorage();
+  return [...BASE_SKILLS, ...customSkills];
+};
+
+// Exportiere alle Skills als SKILLS (für Backwards-Compatibility)
+export const SKILLS = getAllSkills();

@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useMemo } from "react";
 import ApplicationForm from "./components/ApplicationForm";
+import DraftManager from "./components/DraftManager";
 import { submitApplicationData } from "./services/api";
 import "./App.css";
 import { LOCATIONS_DATA } from "./constants/enums";
 import { extractTextFromPdfBlob } from "./utils/pdfToTxt";
+import { useSkills } from "./hooks/useSkills";
+import { useAutoSave } from "./hooks/useAutoSave";
 
 const initialFormData = {
   jobTitle: "",
@@ -14,6 +17,7 @@ const initialFormData = {
   studyInfo: "",
   interests: "",
   skills: [],
+  customSkills: "",
 };
 
 function App() {
@@ -22,6 +26,16 @@ function App() {
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // Skills Management Hook
+  const { allSkills, updateSkills } = useSkills();
+
+  // Auto-Save Hook
+  const { lastSaved, draftExists, loadDraft, clearDraft, getDraftAge } = useAutoSave(
+    formData,
+    setFormData,
+    2000 // Auto-save alle 2 Sekunden nach Änderung
+  );
 
   const handleChange = useCallback((event) => {
     const { name, value, type } = event.target;
@@ -54,11 +68,11 @@ function App() {
     setSubmitStatus(null);
     if (files && files.length > 0) {
       const pdfFiles = Array.from(files).filter(
-        (file) => file.type === "application/pdf",
+        (file) => file.type === "application/pdf"
       );
       if (pdfFiles.length !== files.length) {
         alert(
-          "Einige ausgewählte Dateien waren keine PDFs und wurden ignoriert.",
+          "Einige ausgewählte Dateien waren keine PDFs und wurden ignoriert."
         );
       }
       setUploadedFiles(pdfFiles);
@@ -66,6 +80,21 @@ function App() {
       setUploadedFiles([]);
     }
   }, []);
+
+  const handleLoadDraft = useCallback(() => {
+    if (loadDraft()) {
+      alert('Entwurf erfolgreich geladen!');
+    } else {
+      alert('Fehler beim Laden des Entwurfs.');
+    }
+  }, [loadDraft]);
+
+  const handleClearDraft = useCallback(() => {
+    if (window.confirm('Möchten Sie den gespeicherten Entwurf wirklich löschen?')) {
+      clearDraft();
+      alert('Entwurf gelöscht.');
+    }
+  }, [clearDraft]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -75,29 +104,33 @@ function App() {
 
     // PDF zu Text Konvertierung
     const extractedPdfsData = {};
-    
+
     if (uploadedFiles && uploadedFiles.length > 0) {
       console.log(`Starte Extraktion für ${uploadedFiles.length} PDF(s)...`);
       try {
         setSubmitMessage(`Verarbeite ${uploadedFiles.length} PDF-Datei(en)...`);
-        
+
         await Promise.all(
           uploadedFiles.map(async (file) => {
             try {
               console.log(` - Extrahiere ${file.name}`);
               const text = await extractTextFromPdfBlob(file);
               extractedPdfsData[file.name] = text;
-              console.log(`   -> ${file.name} erfolgreich extrahiert (${text.length} Zeichen).`);
+              console.log(
+                `   -> ${file.name} erfolgreich extrahiert (${text.length} Zeichen).`
+              );
             } catch (fileError) {
               console.error(
                 `Fehler beim Extrahieren von ${file.name}:`,
-                fileError,
+                fileError
               );
-              extractedPdfsData[file.name] = `FEHLER_BEIM_EXTRAHIEREN: ${fileError.message || "Unbekannter Fehler"}`;
+              extractedPdfsData[file.name] = `FEHLER_BEIM_EXTRAHIEREN: ${
+                fileError.message || "Unbekannter Fehler"
+              }`;
             }
-          }),
+          })
         );
-        
+
         console.log("Alle PDFs erfolgreich verarbeitet.");
         console.log("Extrahierte PDF-Inhalte:", Object.keys(extractedPdfsData));
         setSubmitMessage("PDFs verarbeitet, sende Daten...");
@@ -105,7 +138,9 @@ function App() {
         console.error("Fehler während der PDF-Verarbeitung:", overallError);
         setSubmitStatus("error");
         setSubmitMessage(
-          `Fehler bei PDF-Verarbeitung: ${overallError.message || "Unbekannter Fehler"}. Versand abgebrochen.`,
+          `Fehler bei PDF-Verarbeitung: ${
+            overallError.message || "Unbekannter Fehler"
+          }. Versand abgebrochen.`
         );
         setIsSubmitting(false);
         return;
@@ -118,27 +153,32 @@ function App() {
     // Datenobjekt für das Backend
     const dataToSend = {
       ...formData,
-      pdfContents: extractedPdfsData, // Dict mit {dateiname: text}
+      pdfContents: extractedPdfsData,
     };
 
     try {
       console.log("Sende folgendes Objekt an das Backend:", {
         ...dataToSend,
         pdfContents: Object.keys(extractedPdfsData).reduce((acc, key) => {
-          acc[key] = `${extractedPdfsData[key].substring(0, 100)}...`; // Nur ersten 100 Zeichen für Log
+          acc[key] = `${extractedPdfsData[key].substring(0, 100)}...`;
           return acc;
-        }, {})
+        }, {}),
       });
-      
+
       const responseData = await submitApplicationData(dataToSend);
       setSubmitStatus("success");
-      setSubmitMessage(responseData.message || "Daten erfolgreich übermittelt!");
+      setSubmitMessage(
+        responseData.message || "Daten erfolgreich übermittelt!"
+      );
+
+      // Nach erfolgreichem Submit, Draft löschen
+      clearDraft();
     } catch (error) {
       console.error("Fehler beim Senden der Daten an das Backend:", error);
       setSubmitStatus("error");
       setSubmitMessage(
         error.message ||
-          "Fehler beim Senden der Daten. Bitte versuchen Sie es erneut.",
+          "Fehler beim Senden der Daten. Bitte versuchen Sie es erneut."
       );
     } finally {
       setIsSubmitting(false);
@@ -153,6 +193,16 @@ function App() {
   return (
     <div className="app-container">
       <h1>Bewerbungsdaten Erfassen und Senden</h1>
+
+      {/* Draft Manager */}
+      <DraftManager
+        draftExists={draftExists}
+        onLoadDraft={handleLoadDraft}
+        onClearDraft={handleClearDraft}
+        getDraftAge={getDraftAge}
+        lastSaved={lastSaved}
+      />
+
       <div className="content-wrapper">
         <div className="form-section">
           <ApplicationForm
@@ -165,11 +215,13 @@ function App() {
             selectedFiles={uploadedFiles}
             locationsData={LOCATIONS_DATA}
             selectedCityData={selectedCityData}
+            availableSkills={allSkills}
+            onSkillsUpdate={updateSkills}
           />
 
           {/* Statusanzeige */}
-          {submitStatus && (
-            submitStatus === "success" ? (
+          {submitStatus &&
+            (submitStatus === "success" ? (
               <button
                 className="status-button"
                 onClick={() => {
@@ -178,22 +230,30 @@ function App() {
                   setUploadedFiles([]);
                 }}
               >
-                <span role="img" aria-label="Erfolg">✓</span> {submitMessage} - PDF wurde heruntergeladen
+                <span role="img" aria-label="Erfolg">
+                  ✓
+                </span>{" "}
+                {submitMessage} - PDF wurde heruntergeladen
               </button>
             ) : (
               <p className={`status-message ${submitStatus}`}>
                 {submitStatus === "loading" ? (
                   <>
-                    <span role="img" aria-label="Lädt">⏳</span> {submitMessage}
+                    <span role="img" aria-label="Lädt">
+                      ⏳
+                    </span>{" "}
+                    {submitMessage}
                   </>
                 ) : (
                   <>
-                    <span role="img" aria-label="Fehler">⚠️</span> {submitMessage}
+                    <span role="img" aria-label="Fehler">
+                      ⚠️
+                    </span>{" "}
+                    {submitMessage}
                   </>
                 )}
               </p>
-            )
-          )}
+            ))}
         </div>
       </div>
     </div>

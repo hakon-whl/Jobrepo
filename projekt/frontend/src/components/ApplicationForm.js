@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import PropTypes from "prop-types";
-import { JOB_SITES, SKILLS, DISCIPLINES } from "../constants/enums";
+import { JOB_SITES, DISCIPLINES } from "../constants/enums";
+import SkillsManager from "./SkillsManager";
 
 function ApplicationForm({
   formData,
@@ -12,6 +13,8 @@ function ApplicationForm({
   selectedFiles,
   locationsData,
   selectedCityData,
+  availableSkills,
+  onSkillsUpdate,
 }) {
   const selectedCityLabel = selectedCityData?.label || "Ort wählen";
 
@@ -20,12 +23,12 @@ function ApplicationForm({
 
   // Gefilterte Skills basierend auf der Suchanfrage
   const filteredSkills = useMemo(() => {
-    if (!skillSearchQuery.trim()) return SKILLS;
+    if (!skillSearchQuery.trim()) return availableSkills;
 
-    return SKILLS.filter(skill =>
+    return availableSkills.filter((skill) =>
       skill.label.toLowerCase().includes(skillSearchQuery.toLowerCase())
     );
-  }, [skillSearchQuery]);
+  }, [skillSearchQuery, availableSkills]);
 
   return (
     <form onSubmit={onSubmit} className="application-form">
@@ -152,6 +155,14 @@ function ApplicationForm({
           />
         </div>
 
+        {/* *** SKILLS MANAGEMENT *** */}
+        <div className="form-group">
+          <SkillsManager
+            availableSkills={availableSkills}
+            onSkillsUpdate={onSkillsUpdate}
+          />
+        </div>
+
         <div className="form-group">
           <label>Fähigkeiten (Mehrfachauswahl):</label>
 
@@ -183,7 +194,9 @@ function ApplicationForm({
         </div>
 
         <div className="form-group file-upload-group">
-          <label htmlFor="documentUploadInput">Dokumente hochladen (PDFs):</label>
+          <label htmlFor="documentUploadInput">
+            Dokumente hochladen (PDFs):
+          </label>
           <input
             type="file"
             id="documentUploadInput"
@@ -229,12 +242,19 @@ ApplicationForm.propTypes = {
     PropTypes.shape({
       value: PropTypes.string.isRequired,
       label: PropTypes.string.isRequired,
-    }),
+    })
   ).isRequired,
   selectedCityData: PropTypes.shape({
     value: PropTypes.string,
     label: PropTypes.string,
   }),
+  availableSkills: PropTypes.arrayOf(
+    PropTypes.shape({
+      value: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+    })
+  ).isRequired,
+  onSkillsUpdate: PropTypes.func.isRequired,
 };
 
 ApplicationForm.defaultProps = {

@@ -1,16 +1,18 @@
-from typing import List, Dict, Optional, Any
+from typing import List, Optional
 import re
 import time
 import random
 from .request_base_scraper import RequestBaseScraper
 from bs4 import BeautifulSoup
+from projekt.backend.core.models import JobDetails, SearchCriteria, JobSource
+
 
 class StepstoneScraper(RequestBaseScraper):
 
     def __init__(self):
         super().__init__("StepStone")
 
-    def get_search_result_urls(self, search_criteria: Dict[str, Any], page: int = 1) -> List[str]:
+    def get_search_result_urls(self, search_criteria: SearchCriteria, max_pages: int = 6) -> List[str]:
         """Sammelt Job-URLs von StepStone Suchseiten"""
         try:
             # Konfiguration validieren
@@ -20,14 +22,9 @@ class StepstoneScraper(RequestBaseScraper):
                     print(f"Fehlende Konfiguration für StepStone: {config_key}")
                     return []
 
-            # URL-Parameter vorbereiten
-            params = {
-                "jobTitle": search_criteria.get("jobTitle", ""),
-                "location": search_criteria.get("location", ""),
-                "radius": search_criteria.get("radius", "20"),
-                "discipline": search_criteria.get("discipline", ""),
-                "seite": 1,  # Starte immer mit Seite 1
-            }
+            # URL-Parameter vorbereiten mit SearchCriteria
+            params = search_criteria.to_stepstone_params()
+            params["seite"] = 1  # Starte immer mit Seite 1
 
             # === SCHRITT 1: ERSTE SEITE LADEN UND KOMPLETT ABARBEITEN ===
             search_url = self._construct_search_url(
@@ -45,16 +42,16 @@ class StepstoneScraper(RequestBaseScraper):
             pages_element = soup.select_one(self.config.get("max_page_selector"))
             if not pages_element:
                 print("Konnte maximale Seitenzahl nicht ermitteln.")
-                max_pages = 1
+                total_pages = 1
             else:
                 try:
                     max_pages_text = pages_element.get_text().rsplit(maxsplit=1)[-1]
-                    max_pages = int(max_pages_text)
+                    total_pages = min(int(max_pages_text), max_pages)
                 except (ValueError, IndexError):
                     print("Fehler beim Parsen der maximalen Seitenzahl.")
-                    max_pages = 1
+                    total_pages = 1
 
-            print(f"Verarbeite {max_pages} Seiten für StepStone...")
+            print(f"Verarbeite {total_pages} Seiten für StepStone...")
 
             all_job_urls = []
 
@@ -77,9 +74,9 @@ class StepstoneScraper(RequestBaseScraper):
                 all_job_urls.extend(page_urls)
                 print(f"Seite 1: {len(page_urls)} Job-URLs gefunden")
 
-            # === SCHRITT 2: WEITERE SEITEN (2 bis max_pages) ABARBEITEN ===
-            if max_pages > 1:
-                for page_num in range(1, 7):
+            # === SCHRITT 2: WEITERE SEITEN (2 bis total_pages) ABARBEITEN ===
+            if total_pages > 1:
+                for page_num in range(2, total_pages + 1):
                     # Wartezeit zwischen den Seiten
                     sleep_time = random.uniform(3, 7)
                     print(f"Warte {sleep_time:.2f} Sekunden vor Seite {page_num}...")
@@ -121,11 +118,11 @@ class StepstoneScraper(RequestBaseScraper):
             print(f"Fehler beim Sammeln der Job-URLs: {e}")
             return []
 
-    def extract_job_details(self, job_page_url: str) -> Optional[Dict[str, Any]]:
+    def extract_job_details(self, job_page_url: str) -> Optional[JobDetails]:
         """Extrahiert Job-Details von einer StepStone Job-Seite"""
         try:
             # HTML laden
-            html_content = self.get_html_content(job_page_url)  # ✅ Geändert
+            html_content = self.get_html_content(job_page_url)
             if not html_content:
                 print(f"Konnte Job-Seite nicht laden: {job_page_url}")
                 return None
@@ -147,14 +144,14 @@ class StepstoneScraper(RequestBaseScraper):
 
             raw_text = content_element.get_text(strip=True) if content_element else "Kein Text extrahierbar"
             job_title = title_element.get_text(strip=True) if title_element else "Titel nicht extrahierbar"
-            job_title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', job_title) if job_title else ""
 
-            return {
-                "title": job_title,
-                "title_clean": job_title_clean,
-                "raw_text": raw_text,
-                "url": job_page_url,
-            }
+            return JobDetails(
+                title=job_title,
+                title_clean="",  # Wird in __post_init__ gesetzt
+                raw_text=raw_text,
+                url=job_page_url,
+                source_site=JobSource.STEPSTONE
+            )
 
         except Exception as e:
             print(f"Fehler beim Extrahieren von {job_page_url}: {e}")

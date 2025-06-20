@@ -1,9 +1,9 @@
-from typing import List, Dict, Optional, Any
-import re
+from typing import List, Optional
 import time
 import random
 from .selenium_base_scraper import SeleniumBaseScraper
 from bs4 import BeautifulSoup
+from projekt.backend.core.models import JobDetails, SearchCriteria, JobSource
 
 
 class XingScraper(SeleniumBaseScraper):
@@ -12,7 +12,7 @@ class XingScraper(SeleniumBaseScraper):
     def __init__(self):
         super().__init__("Xing")
 
-    def get_search_result_urls(self, search_criteria: Dict[str, Any]) -> List[str]:
+    def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
         """Sammelt Job-URLs von der XING-Suchseite"""
         try:
             # Client initialisieren
@@ -21,16 +21,10 @@ class XingScraper(SeleniumBaseScraper):
                 print("Client konnte nicht geöffnet werden")
                 return []
 
-            # Suchparameter vorbereiten
-            search_params = {
-                "jobTitle": search_criteria.get("jobTitle", ""),
-                "location": search_criteria.get("location", ""),
-                "radius": search_criteria.get("radius", "20"),
-            }
-
-            # Suchseite laden
+            # Suchseite laden mit SearchCriteria
             search_url = self._construct_search_url(
-                self.config.get("search_url_template"), search_params
+                self.config.get("search_url_template"),
+                search_criteria.to_xing_params()
             )
 
             if not self.load_url(search_url):
@@ -75,7 +69,7 @@ class XingScraper(SeleniumBaseScraper):
             print(f"Fehler beim Sammeln der Job-URLs: {e}")
             return []
 
-    def extract_job_details(self, job_page_url: str) -> Optional[Dict[str, Any]]:
+    def extract_job_details(self, job_page_url: str) -> Optional[JobDetails]:
         """Extrahiert Job-Details von einer XING Job-Seite"""
         try:
             # Client prüfen
@@ -109,14 +103,14 @@ class XingScraper(SeleniumBaseScraper):
 
             raw_text = content_element.get_text(strip=True) if content_element else "Kein Text extrahierbar"
             job_title = title_element.get_text(strip=True) if title_element else "Titel nicht extrahierbar"
-            job_title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', job_title) if job_title else ""
 
-            return {
-                "title": job_title,
-                "title_clean": job_title_clean,
-                "raw_text": raw_text,
-                "url": job_page_url,
-            }
+            return JobDetails(
+                title=job_title,
+                title_clean="",  # Wird in __post_init__ gesetzt
+                raw_text=raw_text,
+                url=job_page_url,
+                source_site=JobSource.XING
+            )
 
         except Exception as e:
             print(f"Fehler beim Extrahieren von {job_page_url}: {e}")

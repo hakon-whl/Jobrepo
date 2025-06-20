@@ -1,12 +1,17 @@
 import subprocess
 import os
 from flask import Flask, request, jsonify, send_from_directory, send_file, make_response
+import datetime
 
 from projekt.backend.ai.text_processor import TextProcessor
 from projekt.backend.scrapers.stepstone_scraper import StepstoneScraper
 from projekt.backend.scrapers.xing_scraper import XingScraper
 from projekt.backend.scrapers.stellenanzeigen_scraper import StellenanzeigenScraper
 from projekt.backend.utils.pdf_utils import PdfUtils
+from projekt.backend.core.models import (
+    SearchCriteria, ApplicantProfile, JobMatchResult,
+    ScrapingSession, JobSource, PDFGenerationConfig
+)
 
 # Pfade definieren
 frontend_dir = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\frontend"
@@ -31,163 +36,174 @@ def setup_frontend_and_server():
     return True
 
 
+def get_scraper_for_source(job_source: JobSource):
+    """Factory-Funktion für Scraper basierend auf JobSource"""
+    scraper_map = {
+        JobSource.STEPSTONE: StepstoneScraper,
+        JobSource.XING: XingScraper,
+        JobSource.STELLENANZEIGEN: StellenanzeigenScraper
+    }
+    return scraper_map.get(job_source)()
+
+
 @app.route('/api/create_job', methods=['POST'])
 def create_job_summary():
-    stepstone = StepstoneScraper()
-    xing = XingScraper()
-    stellenanzeigen = StellenanzeigenScraper()
-    text_processor = TextProcessor()
-    pdf_utils = PdfUtils()
+    """Erstellt Job-Zusammenfassung mit strukturierten Datenklassen"""
     scraper = None
 
     # Eindeutigen Dateinamen für diese Session erstellen
-    import datetime
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    summary_pdf_path = os.path.join(temp_pfs_dir, f"job_summary_{timestamp}.pdf")
 
     try:
         data = request.json
         print(f"Empfangene Daten: {list(data.keys())}")
 
-        # PDF-Inhalte aus Frontend verarbeiten (bereits als Text empfangen)
-        pdf_contents = data.get("pdfContents", {})
-        if pdf_contents:
-            print(f"PDF-Inhalte empfangen: {list(pdf_contents.keys())}")
-            # Hier kannst du die PDF-Texte weiterverarbeiten
-            for filename, text in pdf_contents.items():
+        # === SCHRITT 1: STRUKTURIERTE DATENERFASSUNG ===
+        search_criteria = SearchCriteria(
+            job_title=data.get("jobTitle", ""),
+            location=data.get("location", ""),
+            radius=str(data.get("radius", "20")),
+            discipline=data.get("discipline", "")
+        )
+
+        applicant_profile = ApplicantProfile(
+            study_info=data.get("studyInfo", ""),
+            interests=data.get("interests", ""),
+            skills=data.get("skills", []),  # Liste von Skills
+            pdf_contents=data.get("pdfContents", {})
+        )
+
+        # PDF-Inhalte loggen
+        if applicant_profile.pdf_contents:
+            print(f"PDF-Inhalte empfangen: {list(applicant_profile.pdf_contents.keys())}")
+            for filename, text in applicant_profile.pdf_contents.items():
                 print(f"PDF '{filename}': {len(text)} Zeichen")
 
-        job_sites_selected = data.get("jobSites", [])
-
-        # Scraper-Auswahl und Suchkriterien
-        if "StepStone" in job_sites_selected:
-            scraper = StepstoneScraper()
-            search_criteria = {
-                "jobTitle": data.get("jobTitle", ""),
-                "location": data.get("location", ""),  # Geändert von selectedPlz zu location
-                "radius": data.get("radius", ""),
-                "discipline": data.get("discipline", "")
-            }
-            print("Scraper: StepStone ausgewählt.")
-
-        elif "Xing" in job_sites_selected:
-            scraper = XingScraper()
-            search_criteria = {
-                "jobTitle": data.get("jobTitle", ""),
-                "location": data.get("location", ""),  # Geändert von selectedPlz zu location
-                "radius": data.get("radius", ""),
-            }
-            print("Scraper: XING ausgewählt.")
-
-        elif "Stellenanzeigen" in job_sites_selected:
-            scraper = StellenanzeigenScraper()
-            search_criteria = {
-                "jobTitle": data.get("jobTitle", ""),
-                "location": data.get("location", ""),  # Geändert von selectedPlz zu location
-                "radius": data.get("radius", ""),
-            }
-            print("Scraper: Stellenanzeigen ausgewählt.")
-
-        else:
+        # Job-Sites zu JobSource Enum konvertieren
+        job_sites_input = data.get("jobSites", "")
+        if not job_sites_input:
             return jsonify({
                 "success": False,
-                "message": "Keine unterstützte Jobseite ausgewählt."
+                "message": "Keine Jobseite ausgewählt."
             }), 400
 
-        job_urls = []
-        processed_jobs = 0
+        # JobSource bestimmen
+        try:
+            if job_sites_input == "StepStone":
+                selected_source = JobSource.STEPSTONE
+            elif job_sites_input == "Xing":
+                selected_source = JobSource.XING
+            elif job_sites_input == "Stellenanzeigen.de":
+                selected_source = JobSource.STELLENANZEIGEN
+            else:
+                raise ValueError(f"Unbekannte Job-Site: {job_sites_input}")
+        except ValueError as e:
+            return jsonify({
+                "success": False,
+                "message": str(e)
+            }), 400
 
-        if scraper:
-            if isinstance(scraper, StepstoneScraper):
-                job_urls = scraper.get_search_result_urls(search_criteria)
-                job_urls = list(set(job_urls))
-                print(f"StepStone: {len(job_urls)} einzigartige Job-URLs gesammelt.")
+        # === SCHRITT 2: SCRAPING SESSION INITIALISIEREN ===
+        scraping_session = ScrapingSession(
+            search_criteria=search_criteria,
+            applicant_profile=applicant_profile,
+            selected_sources=[selected_source]
+        )
 
-            elif isinstance(scraper, XingScraper):
-                page_job_urls = scraper.get_search_result_urls(search_criteria)
-                job_urls.extend(page_job_urls)
-                job_urls = list(set(job_urls))
+        # PDF-Konfiguration
+        pdf_config = PDFGenerationConfig(
+            output_directory=temp_pfs_dir,
+            merge_pdfs=True,
+            include_cover_letters=True,
+            sort_by_rating=True
+        )
 
-            elif isinstance(scraper, StellenanzeigenScraper):
-                page_job_urls = scraper.get_search_result_urls(search_criteria)
-                job_urls.extend(page_job_urls)
-                job_urls = list(set(job_urls))
+        # === SCHRITT 3: SCRAPER AUSWÄHLEN UND URLS SAMMELN ===
+        scraper = get_scraper_for_source(selected_source)
+        print(f"Scraper: {selected_source.value} ausgewählt.")
 
-            # Job-Verarbeitung (limitiert auf 4 Jobs für Tests)
-            for job_url in job_urls[:4]:
-                if job_url:
-                    try:
-                        if "StepStone" in job_sites_selected:
-                            job_details = stepstone.extract_job_details(job_url)
-                        elif "Xing" in job_sites_selected:
-                            job_details = xing.extract_job_details(job_url)
-                        elif "Stellenanzeigen" in job_sites_selected:
-                            job_details = stellenanzeigen.extract_job_details(job_url)
+        # Job-URLs sammeln mit strukturierten SearchCriteria
+        job_urls = scraper.get_search_result_urls(search_criteria)
+        job_urls = list(set(job_urls))  # Duplikate entfernen
+        scraping_session.total_jobs_found = len(job_urls)
 
+        print(f"{selected_source.value}: {len(job_urls)} einzigartige Job-URLs gesammelt.")
+
+        # === SCHRITT 4: JOB-VERARBEITUNG ===
+        text_processor = TextProcessor()
+        pdf_utils = PdfUtils()
+
+        for job_url in job_urls[:4]:  # Limitiert auf 4 Jobs für Tests
+            if job_url:
+                try:
+                    # Job-Details extrahieren (gibt JobDetails-Objekt zurück)
+                    job_details = scraper.extract_job_details(job_url)
+
+                    if job_details and job_details.contains_internship_keywords():
+                        print(f"Verarbeite relevanten Job: {job_details.title}")
+
+                        # Job-Beschreibung formatieren
+                        formatted_description = text_processor.format_job_description(job_details.raw_text)
+                        job_details.formatted_description = formatted_description
+
+                        # Job-Match bewerten
+                        rating = text_processor.rate_job_match(job_details, applicant_profile)
+
+                        # JobMatchResult erstellen
+                        match_result = JobMatchResult(
+                            job_details=job_details,
+                            rating=rating,
+                            formatted_description=formatted_description
+                        )
+
+                        if match_result.is_worth_processing:
+                            print(f"Job mit Rating {rating} wird verarbeitet: {job_details.title}")
+
+                            # AI-Model basierend auf Rating auswählen
+                            ai_model = match_result.recommended_ai_model
+                            match_result.ai_model_used = ai_model
+
+                            # Anschreiben generieren mit strukturierten Daten
+                            cover_letter = text_processor.generate_anschreiben(
+                                job_details, applicant_profile, ai_model
+                            )
+                            match_result.cover_letter = cover_letter
+
+                            # PDF erstellen
+                            pdf_filename = match_result.get_pdf_filename()
+                            full_pdf_path = os.path.join(temp_pfs_dir, pdf_filename)
+
+                            pdf_utils.markdown_to_pdf(
+                                formatted_description,
+                                full_pdf_path,
+                                job_details.title,
+                                job_details.url,
+                                rating,
+                                cover_letter
+                            )
+
+                            # Zu Session hinzufügen
+                            scraping_session.add_result(match_result)
+                        else:
+                            print(f'Rating {rating} zu gering für: {job_details.title}')
+                    else:
                         if job_details:
-                            job_title = job_details.get('title_clean', '')
-                            include_keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern"]
+                            print(f"Überspringe Job '{job_details.title}' - keine relevanten Keywords")
 
-                            if any(keyword.lower() in str(job_title).lower() for keyword in include_keywords):
-                                applicant_information = {
-                                    "studyInfo": data.get("studyInfo", ""),
-                                    "interests": data.get("interests", ""),
-                                    "skills": data.get("skills", ""),
-                                }
+                except Exception as job_error:
+                    print(f"Fehler bei Job-Verarbeitung {job_url}: {job_error}")
+                    continue
 
-                                # Verwende PDF-Inhalte als previous_cover_letter
-                                previous_cover_letter = ""
-                                if pdf_contents:
-                                    # Kombiniere alle PDF-Inhalte oder verwende spezifische
-                                    previous_cover_letter = "\n\n".join(pdf_contents.values())
-
-                                job_description = text_processor.format_job_description(job_details.get('raw_text'))
-                                rating_str = text_processor.rate_job_match(job_description, applicant_information)
-
-                                try:
-                                    rating_int = int(rating_str.strip())
-                                except (ValueError, TypeError):
-                                    rating_int = 0
-
-                                safe_job_title_clean = job_details.get('title_clean', 'unbekannter_titel').replace(
-                                    os.sep, '_').replace('/', '_').replace('\\', '_')
-                                pdf_filename = f"{rating_int}_{safe_job_title_clean}.pdf"
-                                full_pdf_path = os.path.join(temp_pfs_dir, pdf_filename)
-
-                                if rating_int >= 2:
-                                    print(f"Verarbeite Job mit Rating {rating_int}: {job_title}")
-                                    if rating_int >= 8:
-                                        model = 'gemini-2.5-pro-preview-05-06'
-                                    else:
-                                        model = 'gemini-2.5-flash-preview-05-20'
-
-                                    anschreiben = text_processor.generate_anschreiben(
-                                        job_description,
-                                        applicant_information,
-                                        previous_cover_letter,
-                                        model
-                                    )
-
-                                    pdf_utils.markdown_to_pdf(
-                                        job_description, full_pdf_path,
-                                        job_details.get('title'),
-                                        job_details.get('url'),
-                                        rating_int, anschreiben
-                                    )
-                                    processed_jobs += 1
-                                else:
-                                    print(f'Rating {rating_int} zu gering für: {job_title}')
-                            else:
-                                print(f"Überspringe Job '{job_title}' - keine relevanten Keywords")
-                    except Exception as job_error:
-                        print(f"Fehler bei Job-Verarbeitung {job_url}: {job_error}")
-                        continue
-
-        print(f"Verarbeitung abgeschlossen. {processed_jobs} Jobs verarbeitet.")
+        # === SCHRITT 5: ERGEBNISSE ZUSAMMENFASSEN ===
+        print(f"Verarbeitung abgeschlossen. {scraping_session.total_jobs_processed} Jobs verarbeitet.")
+        print(f"Erfolgreiche Matches: {len(scraping_session.successful_matches)}")
+        print(f"Durchschnittliches Rating: {scraping_session.average_rating:.2f}")
 
         # PDF zusammenfassen und als Response senden
-        if processed_jobs > 0:
+        if scraping_session.successful_matches:
             print("Erstelle zusammengefasste PDF...")
+            summary_pdf_path = os.path.join(temp_pfs_dir, pdf_config.get_summary_filename(timestamp))
+
             pdf_utils.merge_pdfs_by_rating(temp_pfs_dir, summary_pdf_path)
 
             if os.path.exists(summary_pdf_path):
@@ -197,19 +213,24 @@ def create_job_summary():
                 response = make_response(send_file(
                     summary_pdf_path,
                     as_attachment=True,
-                    download_name=f"job_bewerbungen_{timestamp}.pdf",
+                    download_name=pdf_config.get_summary_filename(timestamp),
                     mimetype='application/pdf'
                 ))
 
-                # Cleanup nach dem Senden (optional)
+                # Cleanup nach dem Senden
                 @response.call_on_close
                 def cleanup():
                     try:
                         if os.path.exists(summary_pdf_path):
                             os.remove(summary_pdf_path)
                             print(f"Temporäre PDF gelöscht: {summary_pdf_path}")
+                        # Cleanup einzelner PDFs
+                        for match_result in scraping_session.successful_matches:
+                            individual_pdf = os.path.join(temp_pfs_dir, match_result.get_pdf_filename())
+                            if os.path.exists(individual_pdf):
+                                os.remove(individual_pdf)
                     except Exception as e:
-                        print(f"Fehler beim Löschen der temporären PDF: {e}")
+                        print(f"Fehler beim Cleanup: {e}")
 
                 return response
             else:
@@ -220,19 +241,38 @@ def create_job_summary():
         else:
             return jsonify({
                 "success": False,
-                "message": "Keine passenden Jobs gefunden oder verarbeitet."
+                "message": "Keine passenden Jobs gefunden oder verarbeitet.",
+                "stats": {
+                    "total_found": scraping_session.total_jobs_found,
+                    "total_processed": scraping_session.total_jobs_processed,
+                    "average_rating": scraping_session.average_rating,
+                    "selected_source": selected_source.value
+                }
             }), 404
 
     except Exception as e:
         print(f"Fehler in create_job_summary: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": str(e),
+            "type": type(e).__name__
+        }), 500
 
     finally:
         if scraper:
             scraper.close_client()
 
+
+# === HEALTH CHECK ENDPOINT ===
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Einfacher Health Check"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "temp_dir_exists": os.path.exists(temp_pfs_dir)
+    })
 
 # Serve des Frontend-Builds
 @app.route('/', defaults={'path': ''})
@@ -250,6 +290,7 @@ def main():
     if setup_frontend_and_server():
         print("Starte Server mit Frontend...")
         print("Öffne http://localhost:5000 im Browser")
+        print(f"Health Check: http://localhost:5000/api/health")
         app.run(host='0.0.0.0', port=5000, debug=True)
     else:
         print("Server konnte nicht gestartet werden.")
