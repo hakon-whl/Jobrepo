@@ -51,6 +51,8 @@ class StepstoneScraper(RequestBaseScraper):
                     print("Fehler beim Parsen der maximalen Seitenzahl.")
                     total_pages = 1
 
+            print(f"🔗 Maximal verfügbare Seiten: {max_pages_text} (StepStone)")
+
             print(f"Verarbeite {total_pages} Seiten für StepStone...")
 
             all_job_urls = []

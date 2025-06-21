@@ -3,6 +3,9 @@ from typing import Optional, Dict, List, Any
 from enum import Enum
 import re
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class JobSource(Enum):
@@ -21,7 +24,7 @@ class AIModel(Enum):
 class SearchCriteria:
     job_title: str
     location: str
-    radius: str = "20"
+    radius: str
     discipline: str = ""
     max_results: int = 50
 
@@ -52,23 +55,30 @@ class SearchCriteria:
 class ApplicantProfile:
     study_info: str
     interests: str
-    skills: List[str]  # Geändert von str zu List[str] für Skills
+    skills: List[str]
     pdf_contents: Dict[str, str] = field(default_factory=dict)
 
     def to_ai_prompt_format(self) -> str:
         """Formatiert Profil für AI-Prompts"""
         skills_text = ", ".join(self.skills) if self.skills else "Keine Skills angegeben"
-        return f"""
+        profile_text = f"""
         Studium: {self.study_info}
         Interessen: {self.interests}
         Fähigkeiten: {skills_text}
         """
+        logger.debug(f"Bewerber-Profil formatiert: {len(profile_text)} Zeichen")
+        return profile_text
 
     def get_previous_cover_letters(self) -> str:
         """Kombiniert alle PDF-Inhalte zu einem String"""
         if not self.pdf_contents:
+            logger.debug("Keine vorherigen Anschreiben verfügbar")
             return ""
-        return "\n\n".join(self.pdf_contents.values())
+
+        combined_letters = "\n\n".join(self.pdf_contents.values())
+        logger.debug(
+            f"Vorherige Anschreiben kombiniert: {len(combined_letters)} Zeichen aus {len(self.pdf_contents)} PDFs")
+        return combined_letters
 
 
 @dataclass
@@ -87,6 +97,8 @@ class JobDetails:
         if not self.title_clean and self.title:
             self.title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', self.title)
 
+        logger.debug(f"JobDetails erstellt: {self.title} von {self.source_site}")
+
     @property
     def safe_filename(self) -> str:
         """Erstellt einen sicheren Dateinamen"""
@@ -96,7 +108,9 @@ class JobDetails:
     def contains_internship_keywords(self) -> bool:
         """Prüft ob Job-Title Praktikums-Keywords enthält"""
         keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern"]
-        return any(keyword.lower() in self.title.lower() for keyword in keywords)
+        has_keywords = any(keyword.lower() in self.title.lower() for keyword in keywords)
+        logger.debug(f"Praktikums-Keywords-Check für '{self.title}': {has_keywords}")
+        return has_keywords
 
 
 @dataclass
@@ -113,10 +127,12 @@ class JobMatchResult:
         self.job_details.formatted_description = self.formatted_description
         self.job_details.cover_letter = self.cover_letter
 
+        logger.info(f"JobMatchResult erstellt: Rating {self.rating} für '{self.job_details.title}'")
+
     @property
     def is_worth_processing(self) -> bool:
         """Prüft ob Job verarbeitet werden soll (Rating >= 2)"""
-        return self.rating >= 2
+        return self.rating >= 5
 
     @property
     def needs_premium_model(self) -> bool:
@@ -137,7 +153,7 @@ class JobMatchResult:
 class ScrapingSession:
     search_criteria: SearchCriteria
     applicant_profile: ApplicantProfile
-    selected_sources: List[JobSource]
+    selected_source: JobSource # <-- GEÄNDERT: Jetzt ein einzelner JobSource
     job_results: List[JobMatchResult] = field(default_factory=list)
     total_jobs_found: int = 0
     total_jobs_processed: int = 0
@@ -146,6 +162,8 @@ class ScrapingSession:
         """Fügt ein Job-Ergebnis zur Session hinzu"""
         self.job_results.append(result)
         self.total_jobs_processed += 1
+        logger.info(
+            f"Job-Ergebnis hinzugefügt: Rating {result.rating} ({self.total_jobs_processed} von {self.total_jobs_found})")
 
     @property
     def successful_matches(self) -> List[JobMatchResult]:
@@ -157,8 +175,9 @@ class ScrapingSession:
         """Berechnet durchschnittliches Rating"""
         if not self.job_results:
             return 0.0
-        return sum(result.rating for result in self.job_results) / len(self.job_results)
-
+        average = sum(result.rating for result in self.job_results) / len(self.job_results)
+        logger.debug(f"Durchschnittliches Rating berechnet: {average:.2f}")
+        return average
 
 @dataclass
 class PDFGenerationConfig:
@@ -169,4 +188,6 @@ class PDFGenerationConfig:
 
     def get_summary_filename(self, timestamp: str) -> str:
         """Erstellt Dateinamen für zusammengefasste PDF"""
-        return f"job_bewerbungen_{timestamp}.pdf"
+        filename = f"job_bewerbungen_{timestamp}.pdf"
+        logger.debug(f"PDF-Zusammenfassung Dateiname: {filename}")
+        return filename
