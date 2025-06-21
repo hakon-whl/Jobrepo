@@ -2,18 +2,17 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
 const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [newSkillLabel, setNewSkillLabel] = useState('');
-  const [newSkillValue, setNewSkillValue] = useState('');
   const [deleteMode, setDeleteMode] = useState(false);
 
   const handleAddSkill = () => {
-    if (!newSkillLabel.trim() || !newSkillValue.trim()) {
-      alert('Bitte sowohl Label als auch Wert eingeben!');
+    if (!newSkillLabel.trim()) {
+      alert('Bitte einen Skill-Namen eingeben!');
       return;
     }
 
-    // Prüfe ob Skill bereits existiert
+    const newSkillValue = generateValueFromLabel(newSkillLabel);
+
     const skillExists = availableSkills.some(
       skill => skill.value === newSkillValue || skill.label === newSkillLabel
     );
@@ -24,13 +23,12 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
     }
 
     const newSkill = {
-      value: newSkillValue.toLowerCase().replace(/\s+/g, '-'),
+      value: newSkillValue,
       label: newSkillLabel
     };
 
     onSkillsUpdate([...availableSkills, newSkill]);
     setNewSkillLabel('');
-    setNewSkillValue('');
   };
 
   const handleDeleteSkill = (skillToDelete) => {
@@ -53,13 +51,12 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
       .replace(/^-|-$/g, '');
   };
 
-  const handleLabelChange = (e) => {
-    const label = e.target.value;
-    setNewSkillLabel(label);
-    setNewSkillValue(generateValueFromLabel(label));
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleAddSkill();
+    }
   };
 
-  // Unterscheide zwischen Standard-Skills und Custom-Skills
   const standardSkills = availableSkills.filter(skill =>
     ['javascript', 'python', 'java', 'react', 'html', 'css', 'sql', 'git',
      'nodejs', 'typescript', 'docker', 'cloud-basics', 'agile', 'angular',
@@ -72,90 +69,72 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
   );
 
   return (
-    <div className="skills-manager">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="skills-manager-toggle"
-      >
-        🛠️ Skills verwalten {isOpen ? '▼' : '▶'}
-      </button>
+    <div className="skills-manager-modern">
+      <div className="skills-manager-header">
+        <h4>Eigene Skills verwalten</h4>
+        <span className="skills-count">{customSkills.length}</span>
+      </div>
 
-      {isOpen && (
-        <div className="skills-manager-content">
-          <div className="skills-manager-section">
-            <h4>Neuen Skill hinzufügen</h4>
-            <div className="add-skill-form">
-              <div className="form-row">
-                <input
-                  type="text"
-                  placeholder="Skill-Name (z.B. Vue.js)"
-                  value={newSkillLabel}
-                  onChange={handleLabelChange}
-                  className="skill-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Technischer Wert (z.B. vuejs)"
-                  value={newSkillValue}
-                  onChange={(e) => setNewSkillValue(e.target.value)}
-                  className="skill-input"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSkill}
-                  className="add-skill-button"
-                >
-                  ➕ Hinzufügen
-                </button>
-              </div>
-            </div>
+      <div className="add-skill-section">
+        <div className="add-skill-input-group">
+          <input
+            type="text"
+            placeholder="Neuen Skill hinzufügen"
+            value={newSkillLabel}
+            onChange={(e) => setNewSkillLabel(e.target.value)}
+            onKeyPress={handleKeyPress}
+            className="add-skill-input"
+          />
+          <button
+            type="button"
+            onClick={handleAddSkill}
+            className="add-skill-btn"
+            disabled={!newSkillLabel.trim()}
+          >
+            Hinzufügen
+          </button>
+        </div>
+      </div>
+
+      {customSkills.length > 0 && (
+        <div className="custom-skills-section">
+          <div className="custom-skills-header">
+            <span className="custom-skills-title">Ihre eigenen Skills</span>
+            <button
+              type="button"
+              onClick={() => setDeleteMode(!deleteMode)}
+              className={`delete-toggle-btn ${deleteMode ? 'active' : ''}`}
+            >
+              {deleteMode ? 'Fertig' : 'Bearbeiten'}
+            </button>
           </div>
 
-          <div className="skills-manager-section">
-            <div className="delete-mode-toggle">
-              <h4>Eigene Skills ({customSkills.length})</h4>
-              <button
-                type="button"
-                onClick={() => setDeleteMode(!deleteMode)}
-                className={`delete-mode-button ${deleteMode ? 'active' : ''}`}
+          <div className="custom-skills-list">
+            {customSkills.map(skill => (
+              <div
+                key={skill.value}
+                className={`custom-skill-tag ${deleteMode ? 'delete-mode' : ''}`}
               >
-                {deleteMode ? '✅ Fertig' : '🗑️ Löschen'}
-              </button>
-            </div>
-
-            {customSkills.length === 0 ? (
-              <p className="no-custom-skills">Noch keine eigenen Skills hinzugefügt.</p>
-            ) : (
-              <div className="custom-skills-grid">
-                {customSkills.map(skill => (
-                  <div
-                    key={skill.value}
-                    className={`custom-skill-item ${deleteMode ? 'delete-mode' : ''}`}
+                <span className="skill-name">{skill.label}</span>
+                {deleteMode && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSkill(skill)}
+                    className="delete-skill-btn"
+                    title={`${skill.label} löschen`}
                   >
-                    <span className="skill-label">{skill.label}</span>
-                    {deleteMode && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSkill(skill)}
-                        className="delete-skill-button"
-                        title={`${skill.label} löschen`}
-                      >
-                        ❌
-                      </button>
-                    )}
-                  </div>
-                ))}
+                    ×
+                  </button>
+                )}
               </div>
-            )}
+            ))}
           </div>
+        </div>
+      )}
 
-          <div className="skills-manager-info">
-            <small>
-              💡 <strong>Info:</strong> Standard-Skills können nicht gelöscht werden.
-              Eigene Skills werden lokal gespeichert und stehen beim nächsten Besuch zur Verfügung.
-            </small>
-          </div>
+      {customSkills.length === 0 && (
+        <div className="no-custom-skills">
+          <p>Fügen Sie eigene Skills hinzu, die in der Standard-Liste fehlen.</p>
         </div>
       )}
     </div>

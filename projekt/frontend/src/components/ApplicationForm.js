@@ -155,7 +155,7 @@ function ApplicationForm({
           />
         </div>
 
-        {/* *** SKILLS MANAGEMENT *** */}
+        {/* *** MODERNER SKILLS MANAGER *** */}
         <div className="form-group">
           <SkillsManager
             availableSkills={availableSkills}
@@ -164,7 +164,7 @@ function ApplicationForm({
         </div>
 
         <div className="form-group">
-          <label>Fähigkeiten (Mehrfachauswahl):</label>
+          <label>Fähigkeiten auswählen (Mehrfachauswahl):</label>
 
           <div className="skills-search">
             <input
@@ -207,7 +207,7 @@ function ApplicationForm({
             className="file-input-hidden"
           />
           <label htmlFor="documentUploadInput" className="file-upload-button">
-            Dateien auswählen
+            📁 Dateien auswählen
           </label>
           <div className="file-name-display">
             {selectedFiles && selectedFiles.length > 0 ? (

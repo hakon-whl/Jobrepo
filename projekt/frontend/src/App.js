@@ -1,12 +1,10 @@
 import React, { useState, useCallback, useMemo } from "react";
 import ApplicationForm from "./components/ApplicationForm";
-import DraftManager from "./components/DraftManager";
 import { submitApplicationData } from "./services/api";
 import "./App.css";
 import { LOCATIONS_DATA } from "./constants/enums";
 import { extractTextFromPdfBlob } from "./utils/pdfToTxt";
 import { useSkills } from "./hooks/useSkills";
-import { useAutoSave } from "./hooks/useAutoSave";
 
 const initialFormData = {
   jobTitle: "",
@@ -29,13 +27,6 @@ function App() {
 
   // Skills Management Hook
   const { allSkills, updateSkills } = useSkills();
-
-  // Auto-Save Hook
-  const { lastSaved, draftExists, loadDraft, clearDraft, getDraftAge } = useAutoSave(
-    formData,
-    setFormData,
-    2000 // Auto-save alle 2 Sekunden nach Änderung
-  );
 
   const handleChange = useCallback((event) => {
     const { name, value, type } = event.target;
@@ -80,21 +71,6 @@ function App() {
       setUploadedFiles([]);
     }
   }, []);
-
-  const handleLoadDraft = useCallback(() => {
-    if (loadDraft()) {
-      alert('Entwurf erfolgreich geladen!');
-    } else {
-      alert('Fehler beim Laden des Entwurfs.');
-    }
-  }, [loadDraft]);
-
-  const handleClearDraft = useCallback(() => {
-    if (window.confirm('Möchten Sie den gespeicherten Entwurf wirklich löschen?')) {
-      clearDraft();
-      alert('Entwurf gelöscht.');
-    }
-  }, [clearDraft]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -171,8 +147,6 @@ function App() {
         responseData.message || "Daten erfolgreich übermittelt!"
       );
 
-      // Nach erfolgreichem Submit, Draft löschen
-      clearDraft();
     } catch (error) {
       console.error("Fehler beim Senden der Daten an das Backend:", error);
       setSubmitStatus("error");
@@ -193,15 +167,6 @@ function App() {
   return (
     <div className="app-container">
       <h1>Bewerbungsdaten Erfassen und Senden</h1>
-
-      {/* Draft Manager */}
-      <DraftManager
-        draftExists={draftExists}
-        onLoadDraft={handleLoadDraft}
-        onClearDraft={handleClearDraft}
-        getDraftAge={getDraftAge}
-        lastSaved={lastSaved}
-      />
 
       <div className="content-wrapper">
         <div className="form-section">
