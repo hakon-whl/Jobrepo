@@ -4,14 +4,19 @@ import io
 import os
 import re
 import PyPDF2
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class PdfUtils:
     @staticmethod
     def markdown_to_pdf(markdown_string, path, job_titel, link, rating, anschreiben=None):
         try:
-            cleaned_job_description = re.sub(r'```markdown|```', '', markdown_string).strip()
-            cleaned_job_anschreiben = re.sub(r'```markdown|```', '', anschreiben).strip()
+            logger.info(f"Erstelle PDF für Job: {job_titel}")
 
+            cleaned_job_description = re.sub(r'```markdown|```', '', markdown_string).strip()
+            cleaned_job_anschreiben = re.sub(r'```markdown|```', '', anschreiben).strip() if anschreiben else ""
 
             all_content_blocks = []
 
@@ -44,35 +49,35 @@ class PdfUtils:
                 )
 
             if pisa_status.err:
-                print(f"Fehler bei der PDF-Erstellung: {pisa_status.err}")
+                logger.error(f"Fehler bei der PDF-Erstellung: {pisa_status.err}")
                 return False
             else:
-                print(f"PDF erfolgreich erstellt: {job_titel}")
+                logger.info(f"PDF erfolgreich erstellt: {job_titel}")
                 return True
 
         except Exception as e:
-            print(f"Ein Fehler ist in markdown_to_pdf aufgetreten: {e}")
+            logger.error(f"Ein Fehler ist in markdown_to_pdf aufgetreten: {e}")
             return False
 
-# Der Rest deiner Klassen und Hauptlogik bleibt unverändert.
     @staticmethod
     def get_rating_from_filename(filename):
         match = re.search(r'^(\d+)_', filename)
         if match:
             try:
-                return int(match.group(1))
+                rating = int(match.group(1))
+                logger.debug(f"Rating aus Dateiname extrahiert: {rating} ({filename})")
+                return rating
             except ValueError:
-                print(f"Warnung: Konnte den Rating-Wert aus '{filename}' nicht interpretieren.")
+                logger.warning(f"Konnte den Rating-Wert aus '{filename}' nicht interpretieren.")
                 return None
         return None
 
     @staticmethod
     def merge_pdfs_by_rating(source_dir, output_filepath):
-
-        print(f"Beginne Zusammenführung von PDFs aus '{source_dir}' nach '{output_filepath}'...")
+        logger.info(f"Beginne Zusammenführung von PDFs aus '{source_dir}' nach '{output_filepath}'...")
 
         if not os.path.isdir(source_dir):
-            print(f"Fehler: Der Quellordner '{source_dir}' existiert nicht.")
+            logger.error(f"Der Quellordner '{source_dir}' existiert nicht.")
             return False
 
         pdf_files_info = []
@@ -84,14 +89,14 @@ class PdfUtils:
                 pdf_files_info.append((rating if rating is not None else -1, full_path))
 
         if not pdf_files_info:
-            print(f"Keine PDF-Dateien im Ordner '{source_dir}' gefunden.")
+            logger.warning(f"Keine PDF-Dateien im Ordner '{source_dir}' gefunden.")
             return False
 
         sorted_pdf_files = sorted(pdf_files_info, key=lambda item: item[0], reverse=True)
 
-        print(f"Gefundene und sortierte Dateien zur Zusammenführung (Rating, Dateiname):")
+        logger.info(f"Gefundene und sortierte Dateien zur Zusammenführung:")
         for rating, path in sorted_pdf_files:
-            print(f"  ({rating}) {os.path.basename(path)}")
+            logger.info(f"  Rating {rating}: {os.path.basename(path)}")
 
         merger = PyPDF2.PdfMerger()
         success = False
@@ -101,28 +106,29 @@ class PdfUtils:
                 try:
                     with open(pdf_path, 'rb') as pdf_file:
                         merger.append(pdf_file)
+                        logger.debug(f"PDF hinzugefügt: {os.path.basename(pdf_path)}")
                 except Exception as e:
-                    print(f"Fehler bei der Datei '{os.path.basename(pdf_path)}': {e}. Überspringe.")
+                    logger.error(f"Fehler bei der Datei '{os.path.basename(pdf_path)}': {e}. Überspringe.")
                     continue
 
             output_dir = os.path.dirname(output_filepath)
             if output_dir and not os.path.exists(output_dir):
                 try:
                     os.makedirs(output_dir, exist_ok=True)
+                    logger.info(f"Zielverzeichnis erstellt: {output_dir}")
                 except OSError as e:
-                    print(f"Fehler: Konnte Zielverzeichnis '{output_dir}' nicht erstellen: {e}")
+                    logger.error(f"Konnte Zielverzeichnis '{output_dir}' nicht erstellen: {e}")
                     raise
 
             with open(output_filepath, 'wb') as output_pdf_file:
                 merger.write(output_pdf_file)
 
-            print(f"\nPDF-Dateien erfolgreich zusammengeführt als '{output_filepath}'.")
+            logger.info(f"PDF-Dateien erfolgreich zusammengeführt als '{output_filepath}'")
             success = True
 
         except Exception as e:
-            print(f"Ein schwerwiegender Fehler ist aufgetreten: {e}")
+            logger.error(f"Ein schwerwiegender Fehler ist aufgetreten: {e}")
             success = False
 
         finally:
             return success
-

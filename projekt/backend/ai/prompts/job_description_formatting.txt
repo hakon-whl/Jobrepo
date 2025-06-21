@@ -1,0 +1,38 @@
+Aufgabe: Extrahiere spezifische Informationen aus dem folgenden Text einer Jobbeschreibung und formatiere sie als klar strukturierte Markdown-Datei, die den Inhalt des Originals präzise widerspiegelt.
+WICHTIG:
+1.  **Inhalts-Extraktion & Zuordnung:** Extrahiere **ausschließlich** Informationen, die zu den folgenden Themenblöcken gehören, falls sie im Originaltext vorhanden sind. Ordne den extrahierten Text **genau** diesen Themen und der vorgegebenen Reihenfolge zu:
+    *   **Jobbezeichnung:** einfach frei lassen.
+    *   **Unternehmen Infos:** Eine kurze Beschreibung des Unternehmens und/oder der Rolle im Unternehmen.
+    *   **Deine Aufgaben:** Eine detaillierte Liste oder Beschreibung der Tätigkeiten und Verantwortlichkeiten.
+    *   **Dein Profil:** Die erforderlichen oder gewünschten Qualifikationen, Fähigkeiten und Erfahrungen des Bewerbers (fachliche Anforderungen).
+    *   **Benefits:** Angebotene Vorteile, Zusatzleistungen oder Vergünstigungen.
+    *   **Standort:** Der Arbeitsort oder die relevanten Standortinformationen.
+    *   **(Alle anderen Textteile des Originals sind strikt zu ignorieren und dürfen NICHT im Output erscheinen.)**
+
+2.  **Text-Treue und minimale Anpassung:** Der Kerninhalt und die Bedeutung der extrahierten Blöcke müssen dem Original entsprechen.
+    *   **Behalte den originalen Wortlaut so weit wie möglich bei.** Der Output soll klar zeigen, was im Original stand.
+    *   Du darfst **nur minimale Anpassungen** zur Verbesserung der Lesbarkeit vornehmen (z. B. offensichtliche Tippfehler korrigieren, uneinheitliche Aufzählungszeichen in Markdown-Listen vereinheitlichen).
+    *   **Füge keine neuen Informationen hinzu**, interpretiere nicht über den Text hinaus und ändere nicht den Sinn oder den Tonfall des Originaltextes.
+
+3.  **Markdown-Formatierung:**
+    *   Strukturiere den extrahierten Inhalt mithilfe von Markdown.
+    *   Verwende **genau die folgenden Markdown-Überschriften (Level 2 `##`)** für die entsprechenden extrahierten Inhaltsblöcke, sofern Inhalt dafür gefunden wurde:
+        *   `## Jobbezeichnung` (frei lassen)
+        *   `## Unternehmen Infos` (für die Unternehmens-/Rollenbeschreibung)
+        *   `## Deine Aufgaben` (für die Aufgabenliste)
+        *   `## Dein Profil` (für die Qualifikationen)
+        *   `## Benefits` (für die Zusatzleistungen)
+        *   `## Standort` (für den Arbeitsort)
+    *   **Wichtig:** Der unter einer Überschrift formatierte Text muss **exakt** dem Inhalt entsprechen, der im Originaldokument für diesen Themenbereich (z.B. alle gefundenen Aufgaben unter `## Deine Aufgaben`, alle Qualifikationen unter `## Dein Profil`) identifiziert wurde.
+    *   Wandle passende Textabschnitte (insbesondere Aufgaben, Profilpunkte, Benefits) in Markdown-Listen (`-` oder `*`) um. Achte auf Konsistenz innerhalb einer Liste.
+    *   Nutze Absätze und Zeilenumbrüche sinnvoll zur Verbesserung der Lesbarkeit.
+
+4.  **Input-Verarbeitung:** Falls der Text HTML-Code enthält, extrahiere zuerst den reinen Textinhalt, bevor du mit der Zuordnung und Formatierung beginnst. Ignoriere dabei alle HTML-Tags.
+
+Ziel: Der Output soll eine präzise strukturierte Jobbeschreibung im Markdown-Format sein. Sie soll **ausschließlich** die oben definierten relevanten Inhalte unter den **vorgegebenen Überschriften** enthalten, sodass klar ersichtlich ist, welche Informationen zu welchem Thema im Originaltext standen. Das Ergebnis muss valides Markdown sein und eine hohe Texttreue zum Original aufweisen.
+
+Hier ist der zu verarbeitende Text:
+
+{html_code}
+
+Stelle sicher, dass der Output nur die extrahierten und formatierten relevanten Blöcke unter den korrekten Überschriften enthält und sonst nichts.
