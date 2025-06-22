@@ -9,7 +9,6 @@ initialisiert das Logging und führt einfache Smoke-Tests durch.
 import sys
 import logging
 
-# Importiere aus deinem Core-Paket
 from projekt.backend.core import (
     JobSource,
     AIModel,
@@ -19,7 +18,6 @@ from projekt.backend.core import (
     JobMatchResult,
     ScrapingSession,
     PDFGenerationConfig,
-    Site,
     PathConfig,
     AIConfig,
     ScrapingConfig,
@@ -27,7 +25,6 @@ from projekt.backend.core import (
     AppConfig,
     USER_AGENTS,
     SITE_CONFIGS,
-    get_site_config,
     get_site_config_by_string,
     setup_logging,
     app_config,
@@ -40,7 +37,6 @@ def test_enums():
     print("== Enums ==")
     print(" JobSource:", [e.value for e in JobSource])
     print(" AIModel:", [e.value for e in AIModel])
-    print(" Site:", [e.value for e in Site])
     print()
 
 
@@ -67,13 +63,15 @@ def test_config():
     print(" Log-Level:", lc.level)
     print()
 
-    # Site-Konfiguration
+    # SITE_CONFIGS Test
     print("== SITE_CONFIGS Test ==")
-    for site in Site:
-        cfg = get_site_config(site)
-        print(f" {site.value} → base_url={cfg['base_url']}")
-    by_str = get_site_config_by_string("Xing")
-    print(" get_site_config_by_string('Xing'): base_url=", by_str["base_url"])
+    for js in JobSource:
+        cfg = SITE_CONFIGS.get(js)
+        print(f" {js.value} → base_url={cfg.get('base_url') if cfg else 'kein Eintrag'}")
+    # get_site_config_by_string
+    for name in ["StepStone", "Xing", "Stellenanzeigen", "Stellenanzeigen.de"]:
+        cfg = get_site_config_by_string(name)
+        print(f" get_site_config_by_string('{name}'): base_url={cfg.get('base_url') if cfg else 'None'}")
     print()
 
 
@@ -83,6 +81,7 @@ def test_models():
     crit = SearchCriteria("Python Developer", "München", "25", discipline="IT")
     print(" SearchCriteria:", crit)
     print("  to_stepstone_params:", crit.to_stepstone_params())
+
     # ApplicantProfile
     prof = ApplicantProfile(
         study_info="WI an der HM München, 5. Sem.",
@@ -92,35 +91,49 @@ def test_models():
     )
     print(" ApplicantProfile AI-Format:\n", prof.to_ai_prompt_format())
     print(" Previous letters:", prof.get_previous_cover_letters())
-    # JobDetails
-    job = JobDetails(
-        title="Praktikant Data Science (m/w/d)",
-        title_clean="",
-        raw_text="Ein Test-Job",
-        url="https://example.com/job",
-        source_site=JobSource.STEPSTONE,
-    )
-    print(" JobDetails.title_clean:", job.title_clean)
+
+    # JobDetails: Test für verschiedene Titel
+    test_titles = [
+        ("Praktikum Data Science (m/w/d)", True),
+        ("Werkstudent Backend-Entwicklung", True),
+        ("Internship Frontend Developer", True),
+        ("HiWi KI Projekt", True),
+        ("Student Assistant Marketing", True),
+        ("Data Engineer", False),
+        ("Trainee Sales Manager", True),
+        ("Ferienjob Lager", False),
+    ]
+    for title, expected in test_titles:
+        job = JobDetails(
+            title=title,
+            title_clean="",
+            raw_text="Test",
+            url="http://example.com",
+            source_site=JobSource.STEPSTONE
+        )
+        print(f" '{title}': is_internship={job.is_internship} (erwartet: {expected})")
+
+    # Safe filename
+    job = JobDetails("Praktikant: Entwicklung/IT", "", "X", "u", JobSource.XING)
     print(" safe_filename:", job.safe_filename)
-    print(" enthält Praktikum?:", job.contains_internship_keywords())
+
     # JobMatchResult
     match = JobMatchResult(job, rating=7, formatted_description="Desc", cover_letter=None, ai_model_used="FLASH")
     print(" JobMatchResult.rating:", match.rating)
     print(" is_worth_processing:", match.is_worth_processing)
     print(" needs_premium_model:", match.needs_premium_model)
     print(" PDF-Filename:", match.get_pdf_filename())
+
     # ScrapingSession
-    session = ScrapingSession(crit, prof, JobSource.STEPSTONE, total_jobs_found=3)
+    session = ScrapingSession(crit, prof, JobSource.XING, total_jobs_found=3)
     for i in range(3):
-        r = JobMatchResult(
-            JobDetails(f"Job{i}", f"Job{i}", "Raw", "url"),
-            rating=i * 3 + 2,
-            formatted_description="fmt"
-        )
+        jd = JobDetails(f"Job{i}", f"Job{i}", "Raw", "url", JobSource.STEPSTONE)
+        r = JobMatchResult(jd, rating=i * 3 + 2, formatted_description="fmt")
         session.add_result(r)
     print(" Session total_jobs_processed:", session.total_jobs_processed)
     print(" successful_matches:", len(session.successful_matches))
     print(" average_rating:", session.average_rating)
+
     # PDFGenerationConfig
     pdf_cfg = PDFGenerationConfig(output_directory="./out")
     print(" PDF summary filename:", pdf_cfg.get_summary_filename("20250622_123456"))

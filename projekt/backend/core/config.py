@@ -6,16 +6,9 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-
 logger = logging.getLogger(__name__)
 
-
-# Bestehende Enums bleiben unverändert
-class Site(Enum):
-    STEPSTONE = "StepStone"
-    XING = "Xing"
-    STELLENANZEIGEN = "Stellenanzeigen"
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 class JobSource(Enum):
@@ -25,16 +18,16 @@ class JobSource(Enum):
 
 
 class AIModel(Enum):
-    FLASH = 'gemini-2.5-flash-preview-05-20'
-    PRO = 'gemini-2.5-pro-preview-05-06'
-    FLASH_2 = 'gemini-2.0-flash'
+    PRO = "gemini-2.5-pro-preview-05-06"
+    FLASH = "gemini-2.5-flash-preview-05-20"
+    FLASH_2 = "gemini-2.5-flash"
 
 
 @dataclass
 class PathConfig:
     """Konfiguration für Dateipfade"""
     frontend_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\frontend"
-    temp_pdfs_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\temp_pdfs"
+    temp_pdfs_dir: str = r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\backend\temp_pdfs"
     prompts_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\ai\prompts"
     logs_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\logs"
 
@@ -52,7 +45,7 @@ class PathConfig:
 class AIConfig:
     # === API-Konfiguration ===
     gemini_api_key: str = field(
-        default_factory=lambda: os.getenv('GEMINI_API_KEY', 'AIzaSyBI4KCnGbDQi9GGi3MB35lQJ-TSNTQH6oI'))
+        default_factory=lambda: os.getenv('GEMINI_API_KEY', 'AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo'))
 
     # === ANSCHREIBEN-GENERIERUNG ===
     cover_letter_model: AIModel = AIModel.FLASH
@@ -62,22 +55,22 @@ class AIConfig:
 
     # === JOB-RATING ===
     rating_model: AIModel = AIModel.FLASH_2
-    rating_temperature: float = 0.05  # Sehr niedrig für konsistente Bewertungen
-    rating_max_tokens: Optional[int] = 10  # Nur eine Zahl erwartet
+    rating_temperature: float = 0.05
+    rating_max_tokens: Optional[int] = 10
 
     # === JOB-BESCHREIBUNG FORMATIERUNG ===
     formatting_model: AIModel = AIModel.FLASH_2
-    formatting_temperature: float = 0.2  # Niedrig für präzise Formatierung
+    formatting_temperature: float = 0.2
     formatting_max_tokens: Optional[int] = None
 
     # === ALLGEMEINE LLM-EINSTELLUNGEN ===
-    default_timeout: int = 30  # Sekunden
+    default_timeout: int = 30
     max_retries: int = 3
-    retry_delay: float = 1.0  # Sekunden zwischen Retries
+    retry_delay: float = 0
 
     # === PREMIUM-SCHWELLENWERTE ===
-    premium_rating_threshold: int = 8  # Ab welchem Rating Premium-Model verwenden
-    auto_upgrade_to_premium: bool = False  # Automatisch auf Premium upgraden
+    premium_rating_threshold: int = 8
+    auto_upgrade_to_premium: bool = False
 
     # === LEGACY (für Rückwärtskompatibilität) ===
     @property
@@ -90,21 +83,21 @@ class AIConfig:
         """Legacy-Property für bestehenden Code"""
         return self.cover_letter_temperature
 
+
 @dataclass
 class ScrapingConfig:
     """Konfiguration für Web-Scraping"""
-    max_pages_per_site: int = 6
-    max_jobs_per_session: int = 20
-    default_request_delay: tuple = (2.0, 5.0)
+    max_pages_per_site: int = 5
+    max_jobs_per_session: int = 10
+    default_request_delay: tuple = (1.0, 3.0)
     max_retries: int = 3
-    retry_delay: int = 10
-    timeout: int = 10
+    retry_delay: int = 5
+    timeout: int = 5
 
     selenium_emulate_mobile_default: bool = True
     selenium_wait_time_default: int = 10
     selenium_scroll_iterations_default: int = 10
     selenium_scroll_wait_time_default: int = 2
-
 
 
 @dataclass
@@ -114,7 +107,7 @@ class LoggingConfig:
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     console_logging: bool = True
     file_logging: bool = True
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    max_file_size: int = 10 * 1024 * 1024
     backup_count: int = 5
 
 
@@ -132,7 +125,7 @@ class AppConfig:
         self.paths.ensure_directories()
 
 
-# User Agents für Scraping (bleibt unverändert)
+# User Agents für Scraping
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -143,9 +136,9 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
 ]
 
-# Site-Konfigurationen (bleiben unverändert)
+# Site-Konfigurationen - jetzt mit JobSource statt Site
 SITE_CONFIGS = {
-    Site.STEPSTONE: {
+    JobSource.STEPSTONE: {
         "base_url": "https://www.stepstone.de",
         "search_url_template": "/jobs/{jobTitle}/in-{location}?radius={radius}&di={discipline}&page={seite}",
         "headers": {
@@ -171,7 +164,7 @@ SITE_CONFIGS = {
         "job_pages_selector": 'span[class="res-tqs0ve"]',
         "job_titel_selector": 'strong[data-at="header-job-title"]',
     },
-    Site.XING: {
+    JobSource.XING: {
         "base_url": "https://www.xing.com",
         "search_url_template": "/jobs/search?keywords={jobTitle}&location={location}&radius={radius}",
         "headers": {
@@ -197,7 +190,7 @@ SITE_CONFIGS = {
         "job_content_selector": "div[data-testid='expandable-content']",
         "job_titel_selector": "h2[data-xds='Headline']",
     },
-    Site.STELLENANZEIGEN: {
+    JobSource.STELLENANZEIGEN: {
         "base_url": "https://www.stellenanzeigen.de/",
         "search_url_template": "/suche/?fulltext={jobTitle}&locationIds={location}&perimeterRadius={radius}",
         "headers": {
@@ -226,19 +219,27 @@ SITE_CONFIGS = {
 }
 
 
-def get_site_config(site_name_enum: Site) -> dict | None:
-    return SITE_CONFIGS.get(site_name_enum)
-
-
 def get_site_config_by_string(site_name_str: str) -> dict | None:
+    """Gibt Konfiguration für Site-Name als String zurück"""
     try:
-        site_enum_member = Site[site_name_str.upper().replace(" ", "_").replace(".", "_")]
-        return SITE_CONFIGS.get(site_enum_member)
-    except KeyError:
-        for site_enum, config in SITE_CONFIGS.items():
-            if site_enum.value == site_name_str:
-                return config
-        logger.warning(f"Keine Konfiguration für Seite '{site_name_str}' gefunden.")
+        # Versuche zuerst direkten Enum-Match
+        for job_source in JobSource:
+            if job_source.value == site_name_str:
+                return SITE_CONFIGS.get(job_source)
+
+        # Fallback für verschiedene Schreibweisen
+        site_map = {
+            "StepStone": JobSource.STEPSTONE,
+            "Xing": JobSource.XING,
+            "Stellenanzeigen": JobSource.STELLENANZEIGEN,
+            "Stellenanzeigen.de": JobSource.STELLENANZEIGEN
+        }
+
+        job_source = site_map.get(site_name_str)
+        return SITE_CONFIGS.get(job_source) if job_source else None
+
+    except Exception as e:
+        logger.warning(f"Fehler beim Abrufen der Site-Konfiguration für '{site_name_str}': {e}")
         return None
 
 

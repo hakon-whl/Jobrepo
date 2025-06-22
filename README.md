@@ -129,7 +129,7 @@ class ScrapingConfig:
 
 ### 1. Server starten
 ```bash
-python main.py
+python module_test.py
 ```
 
 ### 2. Web-Interface öffnen

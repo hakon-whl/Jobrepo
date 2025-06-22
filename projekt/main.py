@@ -15,7 +15,7 @@ try:
     from projekt.backend.utils.pdf_utils import PdfUtils
     from projekt.backend.core.models import (
         SearchCriteria, ApplicantProfile, JobMatchResult,
-        ScrapingSession, JobSource, PDFGenerationConfig
+        ScrapingSession, JobSource
     )
     from projekt.backend.core.config import app_config, setup_logging
 
@@ -104,8 +104,6 @@ def create_job_summary():
         if not data:
             return jsonify({"success": False, "error": "Keine Daten empfangen"}), 400
 
-        print(data.get("location", ""),)
-
         # Datenstrukturen erstellen
         search_criteria = SearchCriteria(
             job_title=data.get("jobTitle", ""),
@@ -173,7 +171,8 @@ def create_job_summary():
 
                     job_details = scraper.extract_job_details(job_url)
 
-                    if job_details and job_details.contains_internship_keywords():
+                    # *** GEÄNDERT: Automatische Prüfung über is_internship Property ***
+                    if job_details and job_details.is_internship:
                         processed_count += 1
 
                         # Job formatieren und bewerten (verwendet automatisch Config-Parameter)
@@ -194,6 +193,7 @@ def create_job_summary():
                             ai_model_used=ai_model_used
                         )
 
+                        # NUR Jobs mit Rating >= 5 verarbeiten
                         if match_result.is_worth_processing:
                             logger.info(f"🎯 Verarbeite hochwertigen Job (Rating: {rating}/10): {job_details.title}")
 
@@ -219,6 +219,8 @@ def create_job_summary():
                                 logger.debug(f"✅ PDF erstellt: {pdf_filename}")
                         else:
                             logger.debug(f"⏭️  Job übersprungen (Rating: {rating}/10): {job_details.title}")
+                    else:
+                        logger.debug(f"⏭️  Kein Praktikums-Job übersprungen: {job_details.title if job_details else 'Unbekannt'}")
 
                 except Exception as job_error:
                     logger.error(f"Job-Verarbeitung Fehler für {job_url}: {job_error}")

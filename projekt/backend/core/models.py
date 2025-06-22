@@ -91,26 +91,34 @@ class JobDetails:
     rating: Optional[int] = None
     formatted_description: Optional[str] = None
     cover_letter: Optional[str] = None
+    is_internship: bool = field(init=False)  # Wird automatisch gesetzt
 
     def __post_init__(self):
         """Validierung und Bereinigung nach Initialisierung"""
         if not self.title_clean and self.title:
             self.title_clean = re.sub(r'[^a-zA-Z0-9 ]', '', self.title)
 
-        logger.debug(f"JobDetails erstellt: {self.title} von {self.source_site}")
+        # Automatische Prüfung auf Praktikums-Keywords
+        self.is_internship = self._contains_internship_keywords()
+
+        logger.debug(f"JobDetails erstellt: {self.title} von {self.source_site} (Praktikum: {self.is_internship})")
+
+    def _contains_internship_keywords(self) -> bool:
+        """Prüft ob Job-Title Praktikums-Keywords enthält"""
+        keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern", "Werkstudent",]
+        has_keywords = any(keyword.lower() in self.title.lower() for keyword in keywords)
+        return has_keywords
+
+    @property
+    def contains_internship_keywords(self) -> bool:
+        """Legacy-Property für Rückwärtskompatibilität"""
+        return self.is_internship
 
     @property
     def safe_filename(self) -> str:
         """Erstellt einen sicheren Dateinamen"""
         safe_title = self.title_clean.replace(os.sep, '_').replace('/', '_').replace('\\', '_')
         return safe_title if safe_title else 'unbekannter_titel'
-
-    def contains_internship_keywords(self) -> bool:
-        """Prüft ob Job-Title Praktikums-Keywords enthält"""
-        keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern"]
-        has_keywords = any(keyword.lower() in self.title.lower() for keyword in keywords)
-        logger.debug(f"Praktikums-Keywords-Check für '{self.title}': {has_keywords}")
-        return has_keywords
 
 
 @dataclass
@@ -119,7 +127,7 @@ class JobMatchResult:
     rating: int
     formatted_description: str
     cover_letter: Optional[str] = None
-    ai_model_used: Optional[str] = None  # Jetzt String statt AIModel
+    ai_model_used: Optional[str] = None
 
     def __post_init__(self):
         """Aktualisiert job_details mit rating"""
@@ -145,11 +153,12 @@ class JobMatchResult:
         """Erstellt Dateinamen für PDF"""
         return f"{self.rating}_{self.job_details.safe_filename}.pdf"
 
+
 @dataclass
 class ScrapingSession:
     search_criteria: SearchCriteria
     applicant_profile: ApplicantProfile
-    selected_source: JobSource # <-- GEÄNDERT: Jetzt ein einzelner JobSource
+    selected_source: JobSource
     job_results: List[JobMatchResult] = field(default_factory=list)
     total_jobs_found: int = 0
     total_jobs_processed: int = 0
@@ -174,6 +183,7 @@ class ScrapingSession:
         average = sum(result.rating for result in self.job_results) / len(self.job_results)
         logger.debug(f"Durchschnittliches Rating berechnet: {average:.2f}")
         return average
+
 
 @dataclass
 class PDFGenerationConfig:
