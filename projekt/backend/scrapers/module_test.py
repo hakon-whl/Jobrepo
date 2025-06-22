@@ -4,23 +4,23 @@ from typing import Dict, Any
 
 from projekt.backend.scrapers.stepstone_scraper import StepstoneScraper
 from projekt.backend.scrapers.xing_scraper import XingScraper
-from projekt.backend.scrapers.stellenanzeigen_scraper \
-    import StellenanzeigenScraper
+from projekt.backend.scrapers.stellenanzeigen_scraper import StellenanzeigenScraper
+from projekt.backend.core.models import SearchCriteria
 
 
-def get_test_search_criteria() -> Dict[str, str]:
+def get_test_search_criteria() -> SearchCriteria:
     """Realistische Test-Kriterien für alle Scraper."""
-    return {
-        "jobTitle": "Praktikant",
-        "location": "München",
-        "radius": "20",
-        "discipline": "IT",
-    }
+    return SearchCriteria(
+        job_title="Praktikant",
+        location="München",
+        radius="20",
+        discipline="IT"
+    )
 
 
 def test_scraper(name: str,
                  scraper: Any,
-                 criteria: Dict[str, str],
+                 criteria: SearchCriteria,
                  max_urls: int = 3) -> Dict[str, Any]:
     """
     1) URLs sammeln
@@ -29,21 +29,29 @@ def test_scraper(name: str,
     """
     disp_name = name.title()
     print(f"\n=== Testing {disp_name} ===")
-    urls = scraper.get_search_result_urls(criteria)
-    found = len(urls or [])
-    print(f"{found} URLs gefunden, zeige bis zu {max_urls}:")
-    for u in (urls or [])[:max_urls]:
-        print("  ▶", u)
-    detail_success = False
-    if urls:
-        print("\nExtrahiere Details der ersten URL...")
-        detail = scraper.extract_job_details(urls[0])
-        detail_success = detail is not None
-        status = "Erfolgreich" if detail_success else "Fehlgeschlagen"
-        print(f"Detail-Extraktion: {status}")
-    else:
-        print("Keine URLs → Detail-Extraktion übersprungen")
-    return {"urls_found": found, "detail_success": detail_success}
+
+    try:
+        urls = scraper.get_search_result_urls(criteria)
+        found = len(urls or [])
+        print(f"{found} URLs gefunden, zeige bis zu {max_urls}:")
+        for u in (urls or [])[:max_urls]:
+            print("  ▶", u)
+
+        detail_success = False
+        if urls:
+            print("\nExtrahiere Details der ersten URL...")
+            detail = scraper.extract_job_details(urls[0])
+            detail_success = detail is not None
+            status = "Erfolgreich" if detail_success else "Fehlgeschlagen"
+            print(f"Detail-Extraktion: {status}")
+        else:
+            print("Keine URLs → Detail-Extraktion übersprungen")
+
+        return {"urls_found": found, "detail_success": detail_success}
+
+    except Exception as e:
+        print(f"Fehler beim Testen von {disp_name}: {e}")
+        return {"urls_found": 0, "detail_success": False}
 
 
 def print_summary(results: Dict[str, Dict[str, Any]]) -> None:
