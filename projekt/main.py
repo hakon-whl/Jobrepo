@@ -60,7 +60,7 @@ def create_session_directory(job_title: str, location: str, job_source: JobSourc
 
         os.makedirs(session_dir_path, exist_ok=True)
 
-        print(f"📁 Session-Verzeichnis: {session_dir_name}")
+        logger.info(f"📁 Session-Verzeichnis erstellt: {session_dir_name}")
         return session_dir_path
 
     except Exception as e:
@@ -72,7 +72,7 @@ def create_session_directory(job_title: str, location: str, job_source: JobSourc
 def setup_frontend_and_server():
     try:
         if not os.path.exists(app_config.paths.build_dir) or not os.listdir(app_config.paths.build_dir):
-            print("Frontend wird gebaut...")
+            logger.info("Frontend wird gebaut...")
             subprocess.run(["npm", "run", "build"], cwd=app_config.paths.frontend_dir, check=True)
         return True
     except Exception as e:
@@ -94,12 +94,17 @@ def create_job_summary():
     scraper = None
 
     try:
-        print("🔍 Starte Job-Suche...")
+        logger.info("🔍 Starte Job-Suche...")
+        logger.info(f"🤖 AI-Config: Anschreiben={app_config.ai.cover_letter_model.value}, "
+                    f"Rating={app_config.ai.rating_model.value}, "
+                    f"Formatierung={app_config.ai.formatting_model.value}")
 
         # Request validieren
         data = request.get_json()
         if not data:
             return jsonify({"success": False, "error": "Keine Daten empfangen"}), 400
+
+        print(data.get("location", ""),)
 
         # Datenstrukturen erstellen
         search_criteria = SearchCriteria(
@@ -133,7 +138,7 @@ def create_job_summary():
         session_dir = create_session_directory(search_criteria.job_title, search_criteria.location, selected_source)
         scraping_session = ScrapingSession(search_criteria, applicant_profile, selected_source)
 
-        print(f"📋 Suche: {search_criteria.job_title} in {search_criteria.location}")
+        logger.info(f"📋 Suche: {search_criteria.job_title} in {search_criteria.location}")
 
         # Scraper starten
         scraper = get_scraper_for_source(selected_source)
@@ -149,14 +154,14 @@ def create_job_summary():
         job_urls = list(set(job_urls))
         scraping_session.total_jobs_found = len(job_urls)
 
-        print(f"📊 {len(job_urls)} Jobs gefunden auf {selected_source.value}")
+        logger.info(f"📊 {len(job_urls)} Jobs gefunden auf {selected_source.value}")
 
         # Jobs verarbeiten
         text_processor = TextProcessor()
         pdf_utils = PdfUtils()
         max_jobs = min(len(job_urls), app_config.scraping.max_jobs_per_session)
 
-        print(f"🔧 Verarbeite {max_jobs} Jobs...")
+        logger.info(f"🔧 Verarbeite {max_jobs} Jobs...")
 
         processed_count = 0
         for i, job_url in enumerate(job_urls[:max_jobs]):
@@ -164,24 +169,37 @@ def create_job_summary():
                 try:
                     # Fortschrittsanzeige
                     if i % 5 == 0 or i == max_jobs - 1:
-                        print(f"   {i + 1}/{max_jobs} Jobs verarbeitet")
+                        logger.info(f"   {i + 1}/{max_jobs} Jobs verarbeitet")
 
                     job_details = scraper.extract_job_details(job_url)
 
                     if job_details and job_details.contains_internship_keywords():
                         processed_count += 1
 
-                        # Job formatieren und bewerten
+                        # Job formatieren und bewerten (verwendet automatisch Config-Parameter)
+                        logger.debug(f"Formatiere Job: {job_details.title}")
                         formatted_description = text_processor.format_job_description(job_details.raw_text)
+
+                        logger.debug(f"Bewerte Job-Match für: {job_details.title}")
                         rating = text_processor.rate_job_match(job_details, applicant_profile)
 
                         job_details.formatted_description = formatted_description
-                        match_result = JobMatchResult(job_details, rating, formatted_description)
+
+                        # AI-Model Info für Tracking
+                        ai_model_used = app_config.ai.cover_letter_model.value
+                        match_result = JobMatchResult(
+                            job_details=job_details,
+                            rating=rating,
+                            formatted_description=formatted_description,
+                            ai_model_used=ai_model_used
+                        )
 
                         if match_result.is_worth_processing:
-                            # Anschreiben generieren
+                            logger.info(f"🎯 Verarbeite hochwertigen Job (Rating: {rating}/10): {job_details.title}")
+
+                            # Anschreiben generieren (verwendet automatisch Config-Parameter)
                             cover_letter = text_processor.generate_anschreiben(
-                                job_details, applicant_profile, match_result.recommended_ai_model
+                                job_details, applicant_profile
                             )
                             match_result.cover_letter = cover_letter
 
@@ -189,19 +207,37 @@ def create_job_summary():
                             pdf_filename = match_result.get_pdf_filename()
                             full_pdf_path = os.path.join(session_dir, pdf_filename)
 
-                            if pdf_utils.markdown_to_pdf(formatted_description, full_pdf_path,
-                                                         job_details.title, job_details.url, rating, cover_letter):
+                            if pdf_utils.markdown_to_pdf(
+                                    formatted_description,
+                                    full_pdf_path,
+                                    job_details.title,
+                                    job_details.url,
+                                    rating,
+                                    cover_letter
+                            ):
                                 scraping_session.add_result(match_result)
+                                logger.debug(f"✅ PDF erstellt: {pdf_filename}")
+                        else:
+                            logger.debug(f"⏭️  Job übersprungen (Rating: {rating}/10): {job_details.title}")
 
                 except Exception as job_error:
-                    logger.error(f"Job-Verarbeitung Fehler: {job_error}")
+                    logger.error(f"Job-Verarbeitung Fehler für {job_url}: {job_error}")
                     continue
 
-        print(f"✅ {processed_count} relevante Jobs verarbeitet")
-        print(f"⭐ {len(scraping_session.successful_matches)} erfolgreiche Matches")
+        logger.info(f"✅ {processed_count} relevante Jobs verarbeitet")
+        logger.info(f"⭐ {len(scraping_session.successful_matches)} erfolgreiche Matches")
 
         if scraping_session.successful_matches:
-            print(f"📈 ⌀ Rating: {scraping_session.average_rating:.1f}/10")
+            avg_rating = scraping_session.average_rating
+            logger.info(f"📈 ⌀ Rating: {avg_rating:.1f}/10")
+
+            # Log AI-Model Usage
+            used_models = {}
+            for match in scraping_session.successful_matches:
+                model = match.ai_model_used or "unknown"
+                used_models[model] = used_models.get(model, 0) + 1
+
+            logger.info(f"🤖 AI-Models verwendet: {used_models}")
 
             # PDF zusammenstellen
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -209,7 +245,7 @@ def create_job_summary():
             summary_pdf_path = os.path.join(session_dir, summary_pdf_filename)
 
             if pdf_utils.merge_pdfs_by_rating(session_dir, summary_pdf_path):
-                print("📄 PDF-Zusammenfassung erstellt")
+                logger.info("📄 PDF-Zusammenfassung erstellt")
 
                 response = make_response(send_file(
                     summary_pdf_path,
@@ -224,8 +260,9 @@ def create_job_summary():
                         import shutil
                         if os.path.exists(session_dir):
                             shutil.rmtree(session_dir)
-                    except:
-                        pass
+                            logger.debug(f"🗑️  Session-Verzeichnis aufgeräumt: {session_dir}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Cleanup Fehler: {cleanup_error}")
 
                 return response
             else:
@@ -237,7 +274,8 @@ def create_job_summary():
                 "stats": {
                     "total_found": scraping_session.total_jobs_found,
                     "total_processed": scraping_session.total_jobs_processed,
-                    "selected_source": selected_source.value
+                    "selected_source": selected_source.value,
+                    "average_rating": scraping_session.average_rating if scraping_session.job_results else 0
                 }
             }), 404
 
@@ -254,8 +292,9 @@ def create_job_summary():
         if scraper:
             try:
                 scraper.close_client()
-            except:
-                pass
+                logger.debug("🔒 Scraper geschlossen")
+            except Exception as close_error:
+                logger.warning(f"Scraper-Close Fehler: {close_error}")
 
 
 @app.route('/api/health', methods=['GET'])
@@ -263,10 +302,45 @@ def health_check():
     try:
         return jsonify({
             "status": "healthy",
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.datetime.now().isoformat(),
+            "config": {
+                "ai_models": {
+                    "cover_letter": app_config.ai.cover_letter_model.value,
+                    "rating": app_config.ai.rating_model.value,
+                    "formatting": app_config.ai.formatting_model.value
+                },
+                "temperatures": {
+                    "cover_letter": app_config.ai.cover_letter_temperature,
+                    "rating": app_config.ai.rating_temperature,
+                    "formatting": app_config.ai.formatting_temperature
+                }
+            }
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Gibt aktuelle AI-Konfiguration zurück"""
+    try:
+        return jsonify({
+            "ai_config": {
+                "cover_letter_model": app_config.ai.cover_letter_model.value,
+                "cover_letter_temperature": app_config.ai.cover_letter_temperature,
+                "rating_model": app_config.ai.rating_model.value,
+                "rating_temperature": app_config.ai.rating_temperature,
+                "formatting_model": app_config.ai.formatting_model.value,
+                "formatting_temperature": app_config.ai.formatting_temperature,
+                "premium_threshold": app_config.ai.premium_rating_threshold
+            },
+            "scraping_config": {
+                "max_jobs_per_session": app_config.scraping.max_jobs_per_session,
+                "max_pages_per_site": app_config.scraping.max_pages_per_site
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/', defaults={'path': ''})
@@ -282,13 +356,19 @@ def serve_frontend(path):
 
 def main():
     try:
-        print("🚀 Starte Server...")
+        logger.info("🚀 Starte Server...")
+        logger.info("🤖 AI-Konfiguration:")
+        logger.info(
+            f"   Anschreiben: {app_config.ai.cover_letter_model.value} (temp: {app_config.ai.cover_letter_temperature})")
+        logger.info(f"   Rating: {app_config.ai.rating_model.value} (temp: {app_config.ai.rating_temperature})")
+        logger.info(
+            f"   Formatierung: {app_config.ai.formatting_model.value} (temp: {app_config.ai.formatting_temperature})")
 
         if setup_frontend_and_server():
-            print("✅ Server bereit auf http://localhost:5000")
+            logger.info("✅ Server bereit auf http://localhost:5000")
             app.run(host='0.0.0.0', port=5000, debug=app_config.debug)
         else:
-            print("❌ Server-Start fehlgeschlagen")
+            logger.error("❌ Server-Start fehlgeschlagen")
     except Exception as e:
         logger.error(f"Server-Start Fehler: {e}")
 

@@ -8,7 +8,8 @@ via Google Gemini API.
 
 __version__ = "0.1.0"
 
-__all__ = ["GeminiClient", "TextProcessor"]
+__all__ = ["GeminiClient", "TextProcessor", "PromptManager"]
 
 from .gemini_client import GeminiClient
 from .text_processor import TextProcessor
+from .prompt_manager import PromptManager

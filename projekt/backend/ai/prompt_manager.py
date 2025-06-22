@@ -11,7 +11,7 @@ class PromptManager:
 
     def __init__(self, prompts_directory: str):
         self.prompts_directory = Path(prompts_directory)
-        self._prompt_cache: Dict[str, str] = {}
+        # self._prompt_cache: Dict[str, str] = {} # Dieser Teil wurde entfernt
         self._validate_prompts_directory()
 
     def _validate_prompts_directory(self) -> None:
@@ -46,19 +46,8 @@ class PromptManager:
     def get_prompt(self, prompt_name: str, **kwargs) -> str:
         """
         Holt einen Prompt und ersetzt Platzhalter
-
-        Args:
-            prompt_name: Name der Prompt-Datei (ohne .txt)
-            **kwargs: Variablen zum Ersetzen der Platzhalter
-
-        Returns:
-            Der formatierte Prompt-String
         """
-        # Lade aus Cache oder von Datei
-        if prompt_name not in self._prompt_cache:
-            self._prompt_cache[prompt_name] = self._load_prompt_from_file(prompt_name)
-
-        prompt_template = self._prompt_cache[prompt_name]
+        prompt_template = self._load_prompt_from_file(prompt_name) # Jetzt wird immer neu geladen
 
         # Ersetze Platzhalter
         try:
@@ -83,14 +72,3 @@ class PromptManager:
             prompts.append(file_path.stem)
 
         return sorted(prompts)
-
-    def reload_prompt(self, prompt_name: str) -> None:
-        """Lädt einen Prompt neu (löscht aus Cache)"""
-        if prompt_name in self._prompt_cache:
-            del self._prompt_cache[prompt_name]
-            logger.info(f"Prompt '{prompt_name}' aus Cache entfernt und wird neu geladen")
-
-    def clear_cache(self) -> None:
-        """Löscht den gesamten Prompt-Cache"""
-        self._prompt_cache.clear()
-        logger.info("Prompt-Cache geleert")

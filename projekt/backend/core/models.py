@@ -119,7 +119,7 @@ class JobMatchResult:
     rating: int
     formatted_description: str
     cover_letter: Optional[str] = None
-    ai_model_used: Optional[AIModel] = None
+    ai_model_used: Optional[str] = None  # Jetzt String statt AIModel
 
     def __post_init__(self):
         """Aktualisiert job_details mit rating"""
@@ -131,23 +131,19 @@ class JobMatchResult:
 
     @property
     def is_worth_processing(self) -> bool:
-        """Prüft ob Job verarbeitet werden soll (Rating >= 2)"""
-        return self.rating >= 5
+        """Prüft ob Job verarbeitet werden soll (Rating >= 5)"""
+        from projekt.backend.core.config import app_config
+        return self.rating >= app_config.ai.cover_letter_min_rating
 
     @property
     def needs_premium_model(self) -> bool:
-        """Prüft ob Premium AI-Model benötigt wird (Rating >= 8)"""
-        return self.rating >= 8
-
-    @property
-    def recommended_ai_model(self) -> AIModel:
-        """Empfiehlt AI-Model basierend auf Rating"""
-        return AIModel.PRO if self.needs_premium_model else AIModel.FLASH
+        """Prüft ob Premium AI-Model benötigt wird (aus Config)"""
+        from projekt.backend.core.config import app_config
+        return self.rating >= app_config.ai.premium_rating_threshold
 
     def get_pdf_filename(self) -> str:
         """Erstellt Dateinamen für PDF"""
         return f"{self.rating}_{self.job_details.safe_filename}.pdf"
-
 
 @dataclass
 class ScrapingSession:

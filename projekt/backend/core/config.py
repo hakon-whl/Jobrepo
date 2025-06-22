@@ -50,14 +50,45 @@ class PathConfig:
 
 @dataclass
 class AIConfig:
-    """Konfiguration für AI-Services"""
+    # === API-Konfiguration ===
     gemini_api_key: str = field(
         default_factory=lambda: os.getenv('GEMINI_API_KEY', 'AIzaSyBI4KCnGbDQi9GGi3MB35lQJ-TSNTQH6oI'))
-    default_model: AIModel = AIModel.FLASH
-    default_temperature: float = 0.5
-    rating_temperature: float = 0.05
-    premium_rating_threshold: int = 8
 
+    # === ANSCHREIBEN-GENERIERUNG ===
+    cover_letter_model: AIModel = AIModel.FLASH
+    cover_letter_temperature: float = 0.5
+    cover_letter_min_rating: float = 5
+    cover_letter_max_tokens: Optional[int] = None
+
+    # === JOB-RATING ===
+    rating_model: AIModel = AIModel.FLASH_2
+    rating_temperature: float = 0.05  # Sehr niedrig für konsistente Bewertungen
+    rating_max_tokens: Optional[int] = 10  # Nur eine Zahl erwartet
+
+    # === JOB-BESCHREIBUNG FORMATIERUNG ===
+    formatting_model: AIModel = AIModel.FLASH_2
+    formatting_temperature: float = 0.2  # Niedrig für präzise Formatierung
+    formatting_max_tokens: Optional[int] = None
+
+    # === ALLGEMEINE LLM-EINSTELLUNGEN ===
+    default_timeout: int = 30  # Sekunden
+    max_retries: int = 3
+    retry_delay: float = 1.0  # Sekunden zwischen Retries
+
+    # === PREMIUM-SCHWELLENWERTE ===
+    premium_rating_threshold: int = 8  # Ab welchem Rating Premium-Model verwenden
+    auto_upgrade_to_premium: bool = False  # Automatisch auf Premium upgraden
+
+    # === LEGACY (für Rückwärtskompatibilität) ===
+    @property
+    def default_model(self) -> AIModel:
+        """Legacy-Property für bestehenden Code"""
+        return self.cover_letter_model
+
+    @property
+    def default_temperature(self) -> float:
+        """Legacy-Property für bestehenden Code"""
+        return self.cover_letter_temperature
 
 @dataclass
 class ScrapingConfig:
