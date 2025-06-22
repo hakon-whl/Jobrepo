@@ -20,7 +20,7 @@ export const LOCATIONS_DATA = [
   { value: "ludwigshafen-am-rhein", label: "Ludwigshafen am Rhein" },
   { value: "magdeburg", label: "Magdeburg" },
   { value: "mainz", label: "Mainz" },
-  { value: "muenchen", label: "München" },
+  { value: "munich", label: "München" },
   { value: "neunkirchen", label: "Neunkirchen" },
   { value: "nuernberg", label: "Nürnberg" },
   { value: "potsdam", label: "Potsdam" },
