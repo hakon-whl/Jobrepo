@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { BASE_SKILLS, loadCustomSkillsFromStorage, saveCustomSkillsToStorage } from '../constants/enums';
 
 export const useSkills = () => {
-  const [allSkills, setAllSkills] = useState(() => {
+    const [allSkills, setAllSkills] = useState(() => {
     const customSkills = loadCustomSkillsFromStorage();
     return [...BASE_SKILLS, ...customSkills];
   });

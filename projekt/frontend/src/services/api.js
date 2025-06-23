@@ -1,87 +1,80 @@
-const API_ENDPOINT = '/api/create_job';
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
 
-export const submitApplicationData = async (data) => {
-  console.log(`Sende JSON an ${API_ENDPOINT}...`);
+async function request(path, {
+  method = "GET",
+  body = null,
+  headers = {},
+  signal = null
+} = {}) {
+  const url = `${API_BASE}${path}`;
+  const init = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, application/pdf",
+      ...headers
+    },
+    signal
+  };
+  if (body !== null) init.body = JSON.stringify(body);
 
-  try {
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, application/pdf',
-      },
-      body: JSON.stringify(data),
-    });
+  const res = await fetch(url, init);
+  const contentType = res.headers.get("content-type") || "";
 
-    console.log("Antwort vom Backend erhalten. Status:", response.status);
-    console.log("Content-Type:", response.headers.get('content-type'));
-
-    if (!response.ok) {
-      let errorDetails = "Unbekannter Fehler";
-
-      // Verbessertes Error Handling
-      const contentType = response.headers.get('content-type');
-
-      try {
-        if (contentType && contentType.includes('application/json')) {
-          const errorJson = await response.json();
-          errorDetails = errorJson.message || errorJson.error || JSON.stringify(errorJson);
-        } else {
-          // Versuche Text zu lesen
-          const errorText = await response.text();
-          if (errorText && errorText.trim()) {
-            errorDetails = `HTTP ${response.status}: ${errorText.substring(0, 300)}`;
-          } else {
-            errorDetails = `HTTP ${response.status}: ${response.statusText}`;
-          }
-        }
-      } catch (readError) {
-        console.error('Fehler beim Lesen der Error-Response:', readError);
-        errorDetails = `HTTP ${response.status}: ${response.statusText} (Response nicht lesbar)`;
+  if (!res.ok) {
+    // verbessertes Error-Parsing
+    let detail;
+    try {
+      if (contentType.includes("application/json")) {
+        const json = await res.json();
+        detail = json.message || JSON.stringify(json);
+      } else {
+        detail = await res.text() || res.statusText;
       }
-
-      throw new Error(`Backend-Fehler: ${errorDetails}`);
+    } catch {
+      detail = res.statusText;
     }
-
-    // Success-Handling
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/pdf')) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-
-      // Automatischer Download
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-
-      const disposition = response.headers.get('content-disposition');
-      const fileNameMatch = disposition && disposition.match(/filename="(.+)"/);
-      const fileName = fileNameMatch ? fileNameMatch[1] : 'job-results.pdf';
-      a.download = fileName;
-
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-
-      return { success: true, message: "PDF wurde erfolgreich heruntergeladen." };
-    } else if (contentType && contentType.includes('application/json')) {
-      const result = await response.json();
-      return result;
-    } else {
-      return { success: true, message: "Daten erfolgreich verarbeitet." };
-    }
-
-  } catch (error) {
-    console.error("Detaillierter Fehler in submitApplicationData:", error);
-
-    // Noch spezifischere Fehlermeldungen
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error("Netzwerkfehler: Kann nicht mit dem Server verbinden. Ist der Server gestartet?");
-    } else if (error.message.includes('Backend-Fehler')) {
-      throw error; // Re-throw Backend-Fehler wie sie sind
-    } else {
-      throw new Error(`Client-Fehler: ${error.message}`);
-    }
+    throw new Error(`API-Fehler ${res.status}: ${detail}`);
   }
-};
+
+  // Success: je nach Content-Type
+  if (contentType.includes("application/pdf")) {
+    return res.blob();
+  }
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+  return res.text();
+}
+
+export async function submitApplicationData(data, signal) {
+  const result = await request("/api/create_job", {
+    method: "POST",
+    body: data,
+    signal
+  });
+
+  // Wenn wir ein Blob bekommen: PDF-Download anstoßen
+  if (result instanceof Blob) {
+    const url = URL.createObjectURL(result);
+    const a = document.createElement("a");
+    a.href = url;
+
+    // optionaler Dateiname aus Content-Disposition
+    const disposition = result.type === "application/pdf"
+      ? (new RegExp('filename="(.+)"')
+          .exec(a.download) || [])[1]
+      : null;
+    a.download = disposition || "job-results.pdf";
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    return { success: true, message: "PDF wurde erfolgreich heruntergeladen." };
+  }
+
+  // JSON-Antwort direkt zurückliefern
+  return result;
+}

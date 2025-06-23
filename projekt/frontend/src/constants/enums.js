@@ -60,7 +60,6 @@ export const DISCIPLINES = [
   { value: "Groß- und Einzelhandel", label: "Groß- und Einzelhandel" },
 ];
 
-// *** BASIS 20 STANDARD-SKILLS (können nicht gelöscht werden) ***
 export const BASE_SKILLS = [
   { value: "javascript", label: "JavaScript" },
   { value: "python", label: "Python" },
@@ -84,9 +83,6 @@ export const BASE_SKILLS = [
   { value: "projektmanagement", label: "Projektmanagement" },
 ];
 
-// *** SKILLS-MANAGEMENT FUNKTIONEN ***
-
-// Lade Custom Skills aus localStorage
 export const loadCustomSkillsFromStorage = () => {
   try {
     const storedSkills = localStorage.getItem('customSkills');

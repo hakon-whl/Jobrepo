@@ -1,161 +1,152 @@
+// src/components/ApplicationForm.js
 import React, { useState, useMemo } from "react";
 import PropTypes from "prop-types";
+import { useForm, Controller } from "react-hook-form";
 import { JOB_SITES, DISCIPLINES } from "../constants/enums";
 import SkillsManager from "./SkillsManager";
 
 function ApplicationForm({
-  formData,
-  onChange,
-  onSliderChange,
   onSubmit,
   isSubmitting,
-  onFileChange,
-  selectedFiles,
   locationsData,
-  selectedCityData,
   availableSkills,
-  onSkillsUpdate,
+  onSkillsUpdate
 }) {
-  const selectedCityLabel = selectedCityData?.label || "Ort wählen";
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors }
+  } = useForm({
+    defaultValues: {
+      jobTitle: "",
+      location: "",
+      discipline: "",
+      radius: 20,
+      jobSites: "",
+      studyInfo: "",
+      interests: "",
+      skills: []
+    }
+  });
 
-  // State für die Skills-Suche
-  const [skillSearchQuery, setSkillSearchQuery] = useState("");
+  // fürs Label und die Suche
+  const radius = watch("radius");
+  const selectedLocation = watch("location");
+  const selectedCityLabel =
+    locationsData.find((l) => l.value === selectedLocation)?.label ||
+    "Ort wählen";
 
-  // Gefilterte Skills basierend auf der Suchanfrage
+  // Skills-Suche
+  const [skillSearch, setSkillSearch] = useState("");
   const filteredSkills = useMemo(() => {
-    if (!skillSearchQuery.trim()) return availableSkills;
-
+    if (!skillSearch.trim()) return availableSkills;
     return availableSkills.filter((skill) =>
-      skill.label.toLowerCase().includes(skillSearchQuery.toLowerCase())
+      skill.label.toLowerCase().includes(skillSearch.toLowerCase())
     );
-  }, [skillSearchQuery, availableSkills]);
+  }, [skillSearch, availableSkills]);
+
+  // Datei-State
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  const submitHandler = (data) => {
+    onSubmit(data, selectedFiles);
+  };
 
   return (
-    <form onSubmit={onSubmit} className="application-form">
-      {/* Jobsuche Fieldset */}
+    <form onSubmit={handleSubmit(submitHandler)} className="application-form">
       <fieldset>
         <legend>Jobsuche</legend>
+
         <div className="form-group">
-          <label htmlFor="jobTitle">Jobtitel (Suchbegriff):</label>
+          <label htmlFor="jobTitle">Jobtitel*</label>
           <input
-            type="text"
             id="jobTitle"
-            name="jobTitle"
-            value={formData.jobTitle}
-            onChange={onChange}
-            required
-            aria-required="true"
+            {...register("jobTitle", { required: "Pflichtfeld" })}
           />
+          {errors.jobTitle && <p>{errors.jobTitle.message}</p>}
         </div>
 
         <div className="form-group">
-          <label htmlFor="location">Stadt:</label>
+          <label htmlFor="location">Stadt*</label>
           <select
             id="location"
-            name="location"
-            value={formData.location}
-            onChange={onChange}
-            required
-            aria-required="true"
+            {...register("location", { required: "Pflichtfeld" })}
           >
-            <option value="" disabled>
-              Bitte wählen...
-            </option>
+            <option value="">Bitte wählen…</option>
             {locationsData.map((loc) => (
               <option key={loc.value} value={loc.value}>
                 {loc.label}
               </option>
             ))}
           </select>
+          {errors.location && <p>{errors.location.message}</p>}
         </div>
 
         <div className="form-group">
-          <label htmlFor="discipline">Disziplin:</label>
-          <select
-            id="discipline"
-            name="discipline"
-            value={formData.discipline}
-            onChange={onChange}
-          >
-            <option value="">Bitte wählen (optional)...</option>
-            {DISCIPLINES.map((disc) => (
-              <option key={disc.value} value={disc.value}>
-                {disc.label}
+          <label htmlFor="discipline">Disziplin</label>
+          <select id="discipline" {...register("discipline")}>
+            <option value="">(optional)</option>
+            {DISCIPLINES.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
               </option>
             ))}
           </select>
         </div>
 
+        {/* <<< Slider-Label und Input trennen */}
         <div className="form-group">
           <label htmlFor="radius">
-            Radius: {formData.radius} km (Basis: {selectedCityLabel})
+            Radius: {radius} km (Basis: {selectedCityLabel})
           </label>
-          <input
-            type="range"
-            id="radius"
+          <Controller
             name="radius"
-            min="0"
-            max="100"
-            step="10"
-            value={formData.radius}
-            onChange={onSliderChange}
-            disabled={!formData.location}
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow={formData.radius}
+            control={control}
+            render={({ field }) => (
+              <input
+                type="range"
+                id="radius"
+                min="0"
+                max="100"
+                step="10"
+                {...field}
+              />
+            )}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="jobSites">Bevorzugte Jobseiten:</label>
+          <label htmlFor="jobSites">Jobseite*</label>
           <select
             id="jobSites"
-            name="jobSites"
-            value={formData.jobSites}
-            onChange={onChange}
-            required
-            aria-required="true"
+            {...register("jobSites", { required: "Pflichtfeld" })}
           >
-            <option value="" disabled>
-              Bitte wählen...
-            </option>
-            {JOB_SITES.map((site) => (
-              <option key={site.value} value={site.value}>
-                {site.label}
+            <option value="">Bitte wählen…</option>
+            {JOB_SITES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
               </option>
             ))}
           </select>
+          {errors.jobSites && <p>{errors.jobSites.message}</p>}
         </div>
       </fieldset>
 
-      {/* Persönliche Angaben & Dokumente Fieldset */}
       <fieldset>
-        <legend>Persönliche Angaben & Dokumente</legend>
+        <legend>Persönliches & Dokumente</legend>
+
         <div className="form-group">
-          <label htmlFor="studyInfo">Studium Infos:</label>
-          <textarea
-            id="studyInfo"
-            name="studyInfo"
-            value={formData.studyInfo}
-            onChange={onChange}
-            placeholder="z.B. B.Sc. Informatik, Lieblingsmodule: KI, WebDev"
-            rows="3"
-          />
+          <label htmlFor="studyInfo">Studium Infos</label>
+          <textarea id="studyInfo" {...register("studyInfo")} rows="3" />
         </div>
 
         <div className="form-group">
-          <label htmlFor="interests">Interessen:</label>
-          <textarea
-            id="interests"
-            name="interests"
-            value={formData.interests}
-            onChange={onChange}
-            placeholder="z.b. Open Source, Klettern, Fotografie"
-            rows="3"
-          />
+          <label htmlFor="interests">Interessen</label>
+          <textarea id="interests" {...register("interests")} rows="3" />
         </div>
 
-        {/* *** MODERNER SKILLS MANAGER *** */}
         <div className="form-group">
           <SkillsManager
             availableSkills={availableSkills}
@@ -170,22 +161,20 @@ function ApplicationForm({
             <input
               type="text"
               placeholder="Skills suchen..."
-              value={skillSearchQuery}
-              onChange={(e) => setSkillSearchQuery(e.target.value)}
+              value={skillSearch}
+              onChange={(e) => setSkillSearch(e.target.value)}
               aria-label="Skills suchen"
             />
           </div>
 
-          <div className="checkbox-group" role="group" aria-label="Fähigkeiten">
+          <div className="checkbox-group" role="group" aria-label="Skills">
             {filteredSkills.map((skill) => (
               <div key={skill.value} className="checkbox-item">
                 <input
                   type="checkbox"
                   id={`skill-${skill.value}`}
-                  name="skills"
                   value={skill.value}
-                  checked={formData.skills.includes(skill.value)}
-                  onChange={onChange}
+                  {...register("skills")}
                 />
                 <label htmlFor={`skill-${skill.value}`}>{skill.label}</label>
               </div>
@@ -194,26 +183,29 @@ function ApplicationForm({
         </div>
 
         <div className="form-group file-upload-group">
-          <label htmlFor="documentUploadInput">
-            Dokumente hochladen (PDFs):
-          </label>
+          <label htmlFor="documentUpload">PDFs hochladen</label>
           <input
             type="file"
-            id="documentUploadInput"
-            name="documents"
+            id="documentUpload"
             accept=".pdf"
             multiple
-            onChange={onFileChange}
             className="file-input-hidden"
+            onChange={(e) =>
+              setSelectedFiles(
+                Array.from(e.target.files).filter(
+                  (f) => f.type === "application/pdf"
+                )
+              )
+            }
           />
-          <label htmlFor="documentUploadInput" className="file-upload-button">
+          <label htmlFor="documentUpload" className="file-upload-button">
             📁 Dateien auswählen
           </label>
           <div className="file-name-display">
-            {selectedFiles && selectedFiles.length > 0 ? (
+            {selectedFiles.length > 0 ? (
               <ul>
-                {selectedFiles.map((file, index) => (
-                  <li key={index}>{file.name}</li>
+                {selectedFiles.map((f, i) => (
+                  <li key={i}>{f.name}</li>
                 ))}
               </ul>
             ) : (
@@ -223,44 +215,23 @@ function ApplicationForm({
         </div>
       </fieldset>
 
-      <button type="submit" disabled={isSubmitting} className="submit-button">
-        {isSubmitting ? "Sende..." : "Bewerbungsdaten Senden"}
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="submit-button"
+      >
+        {isSubmitting ? "Sende…" : "Bewerbung senden"}
       </button>
     </form>
   );
 }
 
 ApplicationForm.propTypes = {
-  formData: PropTypes.object.isRequired,
-  onChange: PropTypes.func.isRequired,
-  onSliderChange: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
   isSubmitting: PropTypes.bool.isRequired,
-  onFileChange: PropTypes.func,
-  selectedFiles: PropTypes.arrayOf(PropTypes.instanceOf(File)),
-  locationsData: PropTypes.arrayOf(
-    PropTypes.shape({
-      value: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
-    })
-  ).isRequired,
-  selectedCityData: PropTypes.shape({
-    value: PropTypes.string,
-    label: PropTypes.string,
-  }),
-  availableSkills: PropTypes.arrayOf(
-    PropTypes.shape({
-      value: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
-    })
-  ).isRequired,
-  onSkillsUpdate: PropTypes.func.isRequired,
-};
-
-ApplicationForm.defaultProps = {
-  onFileChange: () => {},
-  selectedFiles: [],
-  selectedCityData: null,
+  locationsData: PropTypes.array.isRequired,
+  availableSkills: PropTypes.array.isRequired,
+  onSkillsUpdate: PropTypes.func.isRequired
 };
 
 export default ApplicationForm;
