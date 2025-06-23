@@ -18,8 +18,7 @@ class XingScraper(SeleniumBaseScraper):
         super().__init__("Xing")
 
         # XING-spezifische Konfigurationen
-        self.max_jobs_limit = getattr(app_config.scraping, 'max_total_jobs_per_site', 200)
-        self.load_more_attempts = getattr(app_config.scraping, 'xing_load_more_attempts', 5)
+        self.max_jobs_limit = getattr(app_config.scraping, 'max_total_jobs_per_site', 100)
 
     def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
         """Sammelt Job-URLs von der XING-Suchseite mit verbesserter Logik"""
@@ -36,9 +35,8 @@ class XingScraper(SeleniumBaseScraper):
                 search_criteria.to_xing_params()
             )
 
-            # Seite mit Element-Wait laden
-            wait_element = self.config.get("wait_for_element")
-            if not self.load_url(search_url, wait_for_element=wait_element):
+            # Seite laden
+            if not self.load_url(search_url):
                 logger.error("XING-Suchseite konnte nicht geladen werden")
                 return []
 
@@ -51,22 +49,11 @@ class XingScraper(SeleniumBaseScraper):
                 for attempt in range(self.load_more_attempts):
                     logger.debug(f"Versuche 'Mehr laden' Button zu klicken (Versuch {attempt + 1})")
 
-                    # Erst scrollen, dann Button suchen
-                    self.scroll_to_bottom(custom_iterations=2, custom_wait=2.0)
+                    self.scroll_to_bottom()
 
-                    # Versuche Button zu klicken
-                    if self.click_element_safe(load_more_selector):
-                        logger.debug("'Mehr laden' Button erfolgreich geklickt")
-                        time.sleep(random.uniform(3, 5))  # Warten auf neue Inhalte
-                    else:
-                        logger.debug("'Mehr laden' Button nicht gefunden - beende Versuche")
-                        break
             else:
                 # Fallback: Normales Scrollen
                 self.scroll_to_bottom()
-
-            # Final scrollen und warten
-            time.sleep(3)
 
             # HTML parsen
             html_content = self.get_html_content()
@@ -127,14 +114,10 @@ class XingScraper(SeleniumBaseScraper):
                 logger.error(f"Client nicht verfügbar für: {job_page_url}")
                 return None
 
-            # Job-Seite laden mit Element-Wait
-            content_wait_element = self.config.get("job_content_wait_element")
-            if not self.load_url(job_page_url, wait_for_element=content_wait_element):
+            # Job-Seite laden
+            if not self.load_url(job_page_url):
                 logger.warning(f"XING Job-Seite konnte nicht geladen werden: {job_page_url}")
                 return None
-
-            # Zusätzliche Wartezeit für XING's dynamische Inhalte
-            time.sleep(random.uniform(3, 5))
 
             # HTML parsen
             html_content = self.get_html_content()

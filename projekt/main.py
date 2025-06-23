@@ -165,13 +165,11 @@ def create_job_summary():
         for i, job_url in enumerate(job_urls[:max_jobs]):
             if job_url:
                 try:
-                    # Fortschrittsanzeige
                     if i % 5 == 0 or i == max_jobs - 1:
                         logger.info(f"   {i + 1}/{max_jobs} Jobs verarbeitet")
 
                     job_details = scraper.extract_job_details(job_url)
 
-                    # *** GEÄNDERT: Automatische Prüfung über is_internship Property ***
                     if job_details and job_details.is_internship:
                         processed_count += 1
 

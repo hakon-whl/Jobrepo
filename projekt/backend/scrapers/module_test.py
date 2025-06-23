@@ -14,7 +14,7 @@ def get_test_search_criteria() -> SearchCriteria:
         job_title="Praktikant",
         location="München",
         radius="20",
-        discipline="IT"
+        discipline=""
     )
 
 

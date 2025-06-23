@@ -115,6 +115,17 @@ class AIConfig:
     formatting_temperature: float = 0.2
 ```
 
+### Datenpfad anpassen
+```python
+@dataclass
+class PathConfig:
+    frontend_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\frontend"
+    temp_pdfs_dir: str = r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\backend\temp_pdfs"
+    prompts_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\ai\prompts"
+    logs_dir: str = r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\logs"
+```
+
+
 ### Scraping-Parameter anpassen
 ```python
 @dataclass
@@ -123,13 +134,19 @@ class ScrapingConfig:
     max_jobs_per_session: int = 20
     default_request_delay: tuple = (2.0, 5.0)
     max_retries: int = 3
+
+    selenium_emulate_mobile_default: bool = True
+    selenium_wait_time_default: int = 10
+    selenium_scroll_iterations_default: int = 10
+    selenium_scroll_wait_time_default: int = 2
 ```
 
 ## 🎯 Verwendung
 
 ### 1. Server starten
 ```bash
-python module_test.py
+  cd projekt
+  python -m projekt.main
 ```
 
 ### 2. Web-Interface öffnen
@@ -184,71 +201,7 @@ const NewComponent = ({ props }) => {
 export default NewComponent;
 ```
 
-## 🚨 Troubleshooting
-
-### Häufige Probleme
-
-**1. Gemini API Fehler**
-```bash
-Fehler: Gemini API-Schlüssel ist erforderlich
-```
-→ Prüfe `.env` Datei und `GEMINI_API_KEY`
-
-**2. ChromeDriver Probleme**
-```bash
-WebDriver Fehler: Chrome binary not found
-```
-→ Installiere Chrome Browser oder update ChromeDriver
-
-**3. PDF-Erstellung fehlgeschlagen**
-```bash
-PDF-Erstellung Fehler: wkhtmltopdf not found
-```
-→ Alternative: `xhtml2pdf` wird automatisch verwendet
-
-**4. Frontend Build-Fehler**
-```bash
-Module not found: pdfjs-dist
-```
-→ Führe `npm run copy-pdf-worker` aus
-
-## 📈 Performance-Optimierung
-
-### Scraping-Performance
-- **Request-Delays** zwischen 2-5 Sekunden
-- **Retry-Mechanismus** mit exponential backoff
-- **Session-Management** für Selenium
-
-### AI-Optimierung
-- **Model-Caching** für wiederholte Anfragen
-- **Batch-Processing** für mehrere Jobs
-- **Temperature-Tuning** für konsistente Ergebnisse
-
-## 🤝 Contributing
-
-1. **Fork** das Repository
-2. **Feature Branch** erstellen (`git checkout -b feature/AmazingFeature`)
-3. **Commit** changes (`git commit -m 'Add AmazingFeature'`)
-4. **Push** to branch (`git push origin feature/AmazingFeature`)
-5. **Pull Request** öffnen
-
-## 📄 Lizenz
-
-Dieses Projekt ist unter der **MIT License** lizenziert - siehe [LICENSE](LICENSE) Datei für Details.
-
-## 👤 Autor
-
 **Hakon**
 - Student der Wirtschaftsinformatik - Informationstechnologie an der HM München
 - GitHub: [@hakon-username](https://github.com/hakon-username)
-
-## 🙏 Danksagungen
-
-- **Google Gemini API** für KI-Funktionalitäten
-- **Selenium** Team für Web-Automation
-- **React** Community für Frontend-Framework
-- **StepStone**, **Xing**, **Stellenanzeigen.de** für Jobdaten
-
----
-
-⭐ **Star** dieses Repository wenn es dir hilft! ⭐
+- Mail: hakon.wahl@gmail.com

@@ -26,7 +26,6 @@ class SearchCriteria:
     location: str
     radius: str
     discipline: str = ""
-    max_results: int = 50
 
     def to_stepstone_params(self) -> Dict[str, Any]:
         return {
@@ -105,7 +104,7 @@ class JobDetails:
 
     def _contains_internship_keywords(self) -> bool:
         """Prüft ob Job-Title Praktikums-Keywords enthält"""
-        keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern", "Werkstudent",]
+        keywords = ["Praktikant", "Praktikum", "Trainee", "Internship", "INTERN", "Intern", "Werkstudent"]
         has_keywords = any(keyword.lower() in self.title.lower() for keyword in keywords)
         return has_keywords
 

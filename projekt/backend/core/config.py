@@ -3,8 +3,6 @@ from typing import Dict, List, Any, Optional
 from enum import Enum
 import os
 import logging
-from pathlib import Path
-from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +18,7 @@ class JobSource(Enum):
 class AIModel(Enum):
     PRO = "gemini-2.5-pro-preview-05-06"
     FLASH = "gemini-2.5-flash-preview-05-20"
-    FLASH_2 = "gemini-2.5-flash"
+    FLASH_2 = "gemini-2.5-flash-lite-preview-06-17"
 
 
 @dataclass
@@ -86,20 +84,41 @@ class AIConfig:
 
 @dataclass
 class ScrapingConfig:
-    """Konfiguration für Web-Scraping"""
-    max_pages_per_site: int = 5
-    max_jobs_per_session: int = 10
-    default_request_delay: tuple = (1.0, 3.0)
-    max_retries: int = 3
-    retry_delay: int = 5
-    timeout: int = 5
+    """Optimierte Scraping-Konfiguration"""
+    # === ALLGEMEINE LIMITS ===
+    max_pages_per_site: int = 10  # Reduziert für Geschwindigkeit
+    max_jobs_per_session: int = 20  # Erhöht
+    max_total_jobs_per_site: int = 200  # Explizit definiert
+    jobs_per_page_limit: int = 50
 
-    selenium_emulate_mobile_default: bool = True
-    selenium_wait_time_default: int = 10
-    selenium_scroll_iterations_default: int = 10
-    selenium_scroll_wait_time_default: int = 2
+    # === REQUEST-TIMING (optimiert) ===
+    page_request_delay_min: float = 0.3  # Sehr schnell
+    page_request_delay_max: float = 0.8
+    item_request_delay_min: float = 0.2
+    item_request_delay_max: float = 0.5
 
+    # === RETRY-STRATEGIE ===
+    max_retries: int = 2  # Nur 1 Duplikat
+    retry_delay_base: float = 1.5
+    retry_delay_max: float = 10.0
+    retry_on_status_codes: List[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
 
+    # === TIMEOUTS (optimiert) ===
+    request_timeout: int = 15  # Reduziert
+    page_load_timeout: int = 12
+    implicit_wait: int = 3
+    explicit_wait: int = 8
+
+    # === ANTI-BOT-MAßNAHMEN ===
+    user_agent_rotation_chance: float = 0.15  # Reduziert
+
+    # === SELENIUM-KONFIGURATION (optimiert) ===
+    selenium_emulate_mobile_default: bool = False  # Desktop ist oft schneller
+    selenium_wait_time_default: int = 1  # Reduziert
+    selenium_scroll_iterations_default: int = 10  # Stark reduziert
+    selenium_scroll_wait_time_default: int = 0.5  # Sehr schnell
+    selenium_window_width_default: int = 400  # Desktop-optimiert
+    selenium_window_height_default: int = 900
 @dataclass
 class LoggingConfig:
     """Konfiguration für Logging"""
@@ -210,7 +229,7 @@ SITE_CONFIGS = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         },
         "job_url": {
-            "selector": "script_regex",
+            "selector": "``script_regex``",
             "attribute": "script",
             "regex_pattern": r'"link":"https://www.stellenanzeigen.de(/job/[^"]+)"'
         },

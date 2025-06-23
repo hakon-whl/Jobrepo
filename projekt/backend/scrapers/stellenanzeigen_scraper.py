@@ -20,7 +20,7 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
         super().__init__("Stellenanzeigen")
 
         # Stellenanzeigen-spezifische Konfigurationen
-        self.max_jobs_limit = getattr(app_config.scraping, 'max_total_jobs_per_site', 200)
+        self.max_jobs_limit = getattr(app_config.scraping, 'max_total_jobs_per_site', 100)
 
     def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
         """Sammelt Job-URLs von der Stellenanzeigen.de-Suchseite mit verbesserter Logik"""
@@ -37,9 +37,8 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
                 search_criteria.to_stellenanzeigen_params()
             )
 
-            # Seite laden mit Element-Wait
-            wait_element = self.config.get("wait_for_element")
-            if not self.load_url(search_url, wait_for_element=wait_element):
+            # Seite laden
+            if not self.load_url(search_url):
                 logger.error("Suchseite konnte nicht geladen werden")
                 return []
 
@@ -47,14 +46,10 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
             logger.info("Führe erweiterten Scroll-Prozess durch...")
 
             # Erst schnell scrollen für Lazy Loading
-            self.scroll_to_bottom(custom_iterations=3, custom_wait=1.0)
+            self.scroll_to_bottom()
 
             # Dann langsamer für vollständiges Laden
-            time.sleep(2)
-            self.scroll_to_bottom(custom_iterations=2, custom_wait=3.0)
-
-            # Final warten
-            time.sleep(3)
+            self.scroll_to_bottom()
 
             # HTML parsen
             html_content = self.get_html_content()
@@ -132,9 +127,6 @@ class StellenanzeigenScraper(SeleniumBaseScraper):
             if not self.load_url(job_page_url):
                 logger.warning(f"Job-Seite konnte nicht geladen werden: {job_page_url}")
                 return None
-
-            # Zusätzliche Wartezeit für dynamische Inhalte
-            time.sleep(random.uniform(2, 4))
 
             html_content = self.get_html_content()
             if not html_content:
