@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
+/**
+ * Komponente zur Verwaltung benutzerdefinierter Skills
+ * Ermöglicht das Hinzufügen und Löschen von eigenen Skills
+ */
 const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
   const [newSkillLabel, setNewSkillLabel] = useState('');
   const [deleteMode, setDeleteMode] = useState(false);
 
+  /**
+   * Fügt einen neuen benutzerdefinierten Skill hinzu
+   */
   const handleAddSkill = () => {
     if (!newSkillLabel.trim()) {
       alert('Bitte einen Skill-Namen eingeben!');
@@ -13,6 +20,7 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
 
     const newSkillValue = generateValueFromLabel(newSkillLabel);
 
+    // Prüfung auf bereits existierende Skills
     const skillExists = availableSkills.some(
       skill => skill.value === newSkillValue || skill.label === newSkillLabel
     );
@@ -31,6 +39,9 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
     setNewSkillLabel('');
   };
 
+  /**
+   * Löscht einen benutzerdefinierten Skill nach Bestätigung
+   */
   const handleDeleteSkill = (skillToDelete) => {
     if (window.confirm(`Möchten Sie "${skillToDelete.label}" wirklich löschen?`)) {
       const updatedSkills = availableSkills.filter(
@@ -40,6 +51,10 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
     }
   };
 
+  /**
+   * Generiert einen URL-freundlichen Value aus dem Skill-Label
+   * Behandelt deutsche Umlaute und Sonderzeichen
+   */
   const generateValueFromLabel = (label) => {
     return label
       .toLowerCase()
@@ -51,12 +66,16 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
       .replace(/^-|-$/g, '');
   };
 
+  /**
+   * Behandelt Enter-Taste im Eingabefeld
+   */
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleAddSkill();
     }
   };
 
+  // Trennung zwischen Standard- und benutzerdefinierten Skills
   const standardSkills = availableSkills.filter(skill =>
     ['javascript', 'python', 'java', 'react', 'html', 'css', 'sql', 'git',
      'nodejs', 'typescript', 'docker', 'cloud-basics', 'agile', 'angular',
@@ -70,11 +89,13 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
 
   return (
     <div className="skills-manager-modern">
+      {/* Header mit Skill-Anzahl */}
       <div className="skills-manager-header">
         <h4>Eigene Skills verwalten</h4>
         <span className="skills-count">{customSkills.length}</span>
       </div>
 
+      {/* Eingabebereich für neue Skills */}
       <div className="add-skill-section">
         <div className="add-skill-input-group">
           <input
@@ -96,6 +117,7 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
         </div>
       </div>
 
+      {/* Liste der benutzerdefinierten Skills */}
       {customSkills.length > 0 && (
         <div className="custom-skills-section">
           <div className="custom-skills-header">
@@ -132,6 +154,7 @@ const SkillsManager = ({ availableSkills, onSkillsUpdate }) => {
         </div>
       )}
 
+      {/* Fallback-Nachricht wenn keine eigenen Skills vorhanden */}
       {customSkills.length === 0 && (
         <div className="no-custom-skills">
           <p>Fügen Sie eigene Skills hinzu, die in der Standard-Liste fehlen.</p>

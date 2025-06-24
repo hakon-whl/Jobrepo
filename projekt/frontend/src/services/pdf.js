@@ -1,19 +1,26 @@
-// src/App.js
 import React, { useState } from "react";
 import ApplicationForm from "./components/ApplicationForm";
 import { submitApplicationData } from "./services/api";
 import { LOCATIONS_DATA } from "./constants/enums";
 import { useSkills } from "./hooks/useSkills";
 
+/**
+ * Hauptkomponente der Bewerbungsanwendung
+ * Koordiniert Formular-Submission und Skills-Management
+ */
 function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const { allSkills, updateSkills } = useSkills();
 
-  // bekommt jetzt ein Daten-Objekt inklusive pdfContents
+  /**
+   * Handler für Formular-Submission
+   * Verarbeitet die Bewerbungsdaten inklusive PDF-Inhalte
+   */
   const handleFormSubmit = async (data) => {
     setIsSubmitting(true);
     setSubmitStatus("loading");
+
     try {
       const result = await submitApplicationData(data);
       console.log("Ergebnis:", result);
@@ -37,6 +44,7 @@ function App() {
           availableSkills={allSkills}
           onSkillsUpdate={updateSkills}
         />
+        {/* Status-Feedback für den Benutzer */}
         {submitStatus && (
           <p className={`status-message ${submitStatus}`}>
             {submitStatus === "loading"

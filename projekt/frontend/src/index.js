@@ -3,13 +3,15 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./App.css";
 
-// PDF.js Worker-Konfiguration OHNE Import der GlobalWorkerOptions
-// Der Worker-Pfad muss auf die tatsächlich verfügbare Datei zeigen
+/**
+ * PDF.js Worker-Konfiguration
+ * Erforderlich für die PDF-Textextraktion
+ */
 const setPdfWorker = () => {
   try {
-    // Dynamischer Import der GlobalWorkerOptions zur Laufzeit
+    // Dynamischer Import der PDF.js GlobalWorkerOptions
     import('pdfjs-dist/build/pdf').then((pdfjsLib) => {
-      // Prüfe verschiedene mögliche Worker-Pfade
+      // Verschiedene Worker-Pfade für unterschiedliche Deployment-Szenarien
       const possibleWorkerPaths = [
         '/pdf.worker.min.mjs',
         '/pdf.worker.mjs',
@@ -18,7 +20,7 @@ const setPdfWorker = () => {
         'https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs'
       ];
 
-      // Verwende den ersten verfügbaren Pfad
+      // Setze den Worker-Pfad (erster Pfad wird verwendet)
       pdfjsLib.GlobalWorkerOptions.workerSrc = possibleWorkerPaths[0];
       console.log('PDF.js Worker konfiguriert:', pdfjsLib.GlobalWorkerOptions.workerSrc);
     }).catch(err => {
@@ -29,8 +31,10 @@ const setPdfWorker = () => {
   }
 };
 
+// Worker-Konfiguration vor App-Start
 setPdfWorker();
 
+// React App rendern
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>

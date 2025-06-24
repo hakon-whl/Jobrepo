@@ -1,5 +1,14 @@
+// API-Basis-URL aus Umgebungsvariablen oder Fallback auf leeren String
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
 
+/**
+ * Generische HTTP-Request-Funktion
+ * Behandelt JSON- und PDF-Responses sowie Fehlerbehandlung
+ *
+ * @param {string} path - API-Endpunkt-Pfad
+ * @param {Object} options - Request-Optionen
+ * @returns {Promise} Response-Daten als JSON, Blob oder Text
+ */
 async function request(path, {
   method = "GET",
   body = null,
@@ -16,13 +25,15 @@ async function request(path, {
     },
     signal
   };
+
+  // Body nur bei nicht-GET Requests hinzufügen
   if (body !== null) init.body = JSON.stringify(body);
 
   const res = await fetch(url, init);
   const contentType = res.headers.get("content-type") || "";
 
+  // Fehlerbehandlung mit verbesserter Fehlermeldung
   if (!res.ok) {
-    // verbessertes Error-Parsing
     let detail;
     try {
       if (contentType.includes("application/json")) {
@@ -37,7 +48,7 @@ async function request(path, {
     throw new Error(`API-Fehler ${res.status}: ${detail}`);
   }
 
-  // Success: je nach Content-Type
+  // Response-Typ-basierte Rückgabe
   if (contentType.includes("application/pdf")) {
     return res.blob();
   }
@@ -47,34 +58,17 @@ async function request(path, {
   return res.text();
 }
 
+/**
+ * Sendet Bewerbungsdaten an die API
+ *
+ * @param {Object} data - Bewerbungsdaten inklusive PDF-Inhalte
+ * @param {AbortSignal} signal - Optional: AbortController-Signal für Request-Abbruch
+ * @returns {Promise} API-Response
+ */
 export async function submitApplicationData(data, signal) {
-  const result = await request("/api/create_job", {
+  return request("/api/create_job", {
     method: "POST",
     body: data,
     signal
   });
-
-  // Wenn wir ein Blob bekommen: PDF-Download anstoßen
-  if (result instanceof Blob) {
-    const url = URL.createObjectURL(result);
-    const a = document.createElement("a");
-    a.href = url;
-
-    // optionaler Dateiname aus Content-Disposition
-    const disposition = result.type === "application/pdf"
-      ? (new RegExp('filename="(.+)"')
-          .exec(a.download) || [])[1]
-      : null;
-    a.download = disposition || "job-results.pdf";
-
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-
-    return { success: true, message: "PDF wurde erfolgreich heruntergeladen." };
-  }
-
-  // JSON-Antwort direkt zurückliefern
-  return result;
 }

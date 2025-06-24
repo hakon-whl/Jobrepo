@@ -1,10 +1,14 @@
-// src/components/ApplicationForm.js
 import React, { useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useForm, Controller } from "react-hook-form";
 import { JOB_SITES, DISCIPLINES } from "../constants/enums";
 import SkillsManager from "./SkillsManager";
+import { extractTextFromPdfBlob } from "../services/pdf";
 
+/**
+ * Hauptformular für die Bewerbungsdaten-Erfassung
+ * Sammelt alle relevanten Informationen und verarbeitet PDF-Uploads
+ */
 function ApplicationForm({
   onSubmit,
   isSubmitting,
@@ -12,6 +16,7 @@ function ApplicationForm({
   availableSkills,
   onSkillsUpdate
 }) {
+  // React Hook Form Setup mit Standardwerten
   const {
     register,
     control,
@@ -31,14 +36,16 @@ function ApplicationForm({
     }
   });
 
-  // fürs Label und die Suche
+  // Überwachung spezifischer Formularfelder für dynamische UI-Updates
   const radius = watch("radius");
   const selectedLocation = watch("location");
+
+  // Dynamisches Label für Radius basierend auf ausgewähltem Ort
   const selectedCityLabel =
     locationsData.find((l) => l.value === selectedLocation)?.label ||
     "Ort wählen";
 
-  // Skills-Suche
+  // Skills-Suchfunktionalität
   const [skillSearch, setSkillSearch] = useState("");
   const filteredSkills = useMemo(() => {
     if (!skillSearch.trim()) return availableSkills;
@@ -47,15 +54,32 @@ function ApplicationForm({
     );
   }, [skillSearch, availableSkills]);
 
-  // Datei-State
+  // State für PDF-Datei-Uploads
   const [selectedFiles, setSelectedFiles] = useState([]);
 
-  const submitHandler = (data) => {
-    onSubmit(data, selectedFiles);
+  /**
+   * Formular-Submit-Handler
+   * Extrahiert Text aus PDFs und fügt ihn zu den Formulardaten hinzu
+   */
+  const submitHandler = async (data) => {
+    const pdfContents = {};
+
+    // PDF-Text-Extraktion für jede hochgeladene Datei
+    for (const file of selectedFiles) {
+      try {
+        pdfContents[file.name] = await extractTextFromPdfBlob(file);
+      } catch (e) {
+        pdfContents[file.name] = `FEHLER_BEIM_EXTRAHIEREN: ${e.message}`;
+      }
+    }
+
+    // Weiterleitung an Parent-Komponente mit erweiterten Daten
+    onSubmit({ ...data, pdfContents });
   };
 
   return (
     <form onSubmit={handleSubmit(submitHandler)} className="application-form">
+      {/* Jobsuche-Sektion */}
       <fieldset>
         <legend>Jobsuche</legend>
 
@@ -96,7 +120,7 @@ function ApplicationForm({
           </select>
         </div>
 
-        {/* <<< Slider-Label und Input trennen */}
+        {/* Radius-Slider mit dynamischem Label */}
         <div className="form-group">
           <label htmlFor="radius">
             Radius: {radius} km (Basis: {selectedCityLabel})
@@ -134,6 +158,7 @@ function ApplicationForm({
         </div>
       </fieldset>
 
+      {/* Persönliche Daten und Dokumente */}
       <fieldset>
         <legend>Persönliches & Dokumente</legend>
 
@@ -147,6 +172,7 @@ function ApplicationForm({
           <textarea id="interests" {...register("interests")} rows="3" />
         </div>
 
+        {/* Skills-Manager für benutzerdefinierte Skills */}
         <div className="form-group">
           <SkillsManager
             availableSkills={availableSkills}
@@ -154,9 +180,9 @@ function ApplicationForm({
           />
         </div>
 
+        {/* Skills-Auswahl mit Suchfunktion */}
         <div className="form-group">
           <label>Fähigkeiten auswählen (Mehrfachauswahl):</label>
-
           <div className="skills-search">
             <input
               type="text"
@@ -166,7 +192,6 @@ function ApplicationForm({
               aria-label="Skills suchen"
             />
           </div>
-
           <div className="checkbox-group" role="group" aria-label="Skills">
             {filteredSkills.map((skill) => (
               <div key={skill.value} className="checkbox-item">
@@ -182,6 +207,7 @@ function ApplicationForm({
           </div>
         </div>
 
+        {/* PDF-Upload mit Dateifilterung */}
         <div className="form-group file-upload-group">
           <label htmlFor="documentUpload">PDFs hochladen</label>
           <input
