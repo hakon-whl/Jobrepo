@@ -1,38 +1,43 @@
-Aufgabe: Extrahiere spezifische Informationen aus dem folgenden Text einer Jobbeschreibung und formatiere sie als klar strukturierte Markdown-Datei, die den Inhalt des Originals präzise widerspiegelt.
-WICHTIG:
-1.  **Inhalts-Extraktion & Zuordnung:** Extrahiere **ausschließlich** Informationen, die zu den folgenden Themenblöcken gehören, falls sie im Originaltext vorhanden sind. Ordne den extrahierten Text **genau** diesen Themen und der vorgegebenen Reihenfolge zu:
-    *   **Jobbezeichnung:** einfach frei lassen.
-    *   **Unternehmen Infos:** Eine kurze Beschreibung des Unternehmens und/oder der Rolle im Unternehmen.
-    *   **Deine Aufgaben:** Eine detaillierte Liste oder Beschreibung der Tätigkeiten und Verantwortlichkeiten.
-    *   **Dein Profil:** Die erforderlichen oder gewünschten Qualifikationen, Fähigkeiten und Erfahrungen des Bewerbers (fachliche Anforderungen).
-    *   **Benefits:** Angebotene Vorteile, Zusatzleistungen oder Vergünstigungen.
-    *   **Standort:** Der Arbeitsort oder die relevanten Standortinformationen.
-    *   **(Alle anderen Textteile des Originals sind strikt zu ignorieren und dürfen NICHT im Output erscheinen.)**
+**Aufgabe:**
+Konvertiere den bereitgestellten `{html_code}` in ein einheitliches und präzise strukturiertes Markdown-Format. Das Ziel ist, aus jedem beliebigen HTML-basierten Jobangebot **ausschließlich** vordefinierte Informationskategorien zu extrahieren und diese konsistent im Markdown-Format darzustellen, unabhängig vom spezifischen Inhalt der Jobbeschreibung.
 
-2.  **Text-Treue und minimale Anpassung:** Der Kerninhalt und die Bedeutung der extrahierten Blöcke müssen dem Original entsprechen.
-    *   **Behalte den originalen Wortlaut so weit wie möglich bei.** Der Output soll klar zeigen, was im Original stand.
-    *   Du darfst **nur minimale Anpassungen** zur Verbesserung der Lesbarkeit vornehmen (z. B. offensichtliche Tippfehler korrigieren, uneinheitliche Aufzählungszeichen in Markdown-Listen vereinheitlichen).
-    *   **Füge keine neuen Informationen hinzu**, interpretiere nicht über den Text hinaus und ändere nicht den Sinn oder den Tonfall des Originaltextes.
+**Verarbeitungsschritte und Einschränkungen:**
 
-3.  **Markdown-Formatierung:**
-    *   Strukturiere den extrahierten Inhalt mithilfe von Markdown.
-    *   Verwende **genau die folgenden Markdown-Überschriften (Level 2 `##`)** für die entsprechenden extrahierten Inhaltsblöcke, sofern Inhalt dafür gefunden wurde:
-        *   `## Jobbezeichnung` (frei lassen)
-        *   `## Unternehmen Infos` (für die Unternehmens-/Rollenbeschreibung)
-        *   `## Deine Aufgaben` (für die Aufgabenliste)
-        *   `## Dein Profil` (für die Qualifikationen)
-        *   `## Benefits` (für die Zusatzleistungen)
-        *   `## Standort` (für den Arbeitsort)
-    *   **Wichtig:** Der unter einer Überschrift formatierte Text muss **exakt** dem Inhalt entsprechen, der im Originaldokument für diesen Themenbereich (z.B. alle gefundenen Aufgaben unter `## Deine Aufgaben`, alle Qualifikationen unter `## Dein Profil`) identifiziert wurde.
-    *   Wandle passende Textabschnitte (insbesondere Aufgaben, Profilpunkte, Benefits) in Markdown-Listen (`-` oder `*`) um. Achte auf Konsistenz innerhalb einer Liste.
-    *   Nutze Absätze und Zeilenumbrüche sinnvoll zur Verbesserung der Lesbarkeit.
+1.  **HTML-Bereinigung & Text-Extraktion:**
+    *   Behandle den gesamten `{html_code}` als Eingabe.
+    *   Extrahiere den **reinen Textinhalt** aus dem HTML. Entferne dabei **strikt und vollständig** alle HTML-Tags, Skripte, Stylesheets, eingebettete Medien, unnötige Leerzeichen und überflüssigen Zeilenumbrüche.
+    *   Das Ergebnis dieses Schritts ist ein sauberer, unformatierter Textblock.
 
-4.  **Input-Verarbeitung:** Falls der Text HTML-Code enthält, extrahiere zuerst den reinen Textinhalt, bevor du mit der Zuordnung und Formatierung beginnst. Ignoriere dabei alle HTML-Tags.
+2.  **Informations-Extraktion & Zuordnung zu festen Themenblöcken:**
+    *   Extrahiere **ausschließlich** Textteile, die den folgenden Themenblöcken eindeutig zugeordnet werden können. Die Reihenfolge der Themenblöcke ist fest vorgegeben:
+        *   **Jobbezeichnung:** (Dies ist ein Platzhalter, der im Output-Markdown frei bleiben soll, solange die Jobbezeichnung nicht explizit als eigener Block im HTML-Code identifiziert wird.)
+        *   **Unternehmen Infos:** Beschreibung des Unternehmens, der Abteilung oder der spezifischen Rolle im Unternehmen.
+        *   **Deine Aufgaben:** Detaillierte Liste der Tätigkeiten und Verantwortlichkeiten.
+        *   **Dein Profil:** Erforderliche oder gewünschte Qualifikationen, Fähigkeiten (Hard & Soft Skills) und Erfahrungen des Bewerbers.
+        *   **Benefits:** Angebotene Vorteile, Zusatzleistungen, Gehaltspakete oder Vergünstigungen.
+        *   **Standort:** Der physische Arbeitsort oder relevante Standortinformationen (z.B. Reisebereitschaft).
+    *   **(Alles andere im `{html_code}` wird restlos ignoriert und nicht im Output berücksichtigt.)**
 
-Ziel: Der Output soll eine präzise strukturierte Jobbeschreibung im Markdown-Format sein. Sie soll **ausschließlich** die oben definierten relevanten Inhalte unter den **vorgegebenen Überschriften** enthalten, sodass klar ersichtlich ist, welche Informationen zu welchem Thema im Originaltext standen. Das Ergebnis muss valides Markdown sein und eine hohe Texttreue zum Original aufweisen.
+3.  **Text-Treue und minimale Anpassung:**
+    *   Der extrahierte Inhalt muss in Kern, Bedeutung und Aussage dem Originaltext im `{html_code}` entsprechen.
+    *   **Behalte den originalen Wortlaut so weit wie möglich bei.**
+    *   Erlaube **nur minimale Anpassungen** zur Verbesserung der Lesbarkeit im Markdown-Kontext (z.B. Korrektur offensichtlicher Tippfehler, Vereinheitlichung von Aufzählungszeichen).
+    *   **Keine Hinzufügung neuer Informationen**, keine Interpretationen und keine Änderungen des Sinns oder Tons.
+
+4.  **Einheitliche Markdown-Formatierung:**
+    *   Strukturiere den bereinigten und extrahierten Inhalt **strikt** nach den folgenden Markdown-Überschriften (Level 2 `##`). **Lasse eine Überschrift weg, wenn keine relevanten Informationen dafür im `{html_code}` gefunden wurden.**
+        *   `## Jobbezeichnung`
+        *   `## Unternehmen Infos`
+        *   `## Deine Aufgaben`
+        *   `## Dein Profil`
+        *   `## Benefits`
+        *   `## Standort`
+    *   Konvertiere alle identifizierten Aufgaben, Profilpunkte und Benefits in **Markdown-Aufzählungslisten**. Verwende **konsistent nur `- ` oder `* `** für alle Listenelemente innerhalb desselben Themenblocks. Stelle sicher, dass alle ursprünglichen Aufzählungszeichen aus dem HTML entfernt wurden, bevor die Markdown-Listen erstellt werden.
+    *   Nutze sinnvolle Absätze und Zeilenumbrüche zur Verbesserung der Lesbarkeit, achte aber auf eine kompakte Darstellung.
+
+**Ziel:**
+Der Output soll eine **universell formatierte Jobbeschreibung im Markdown-Format** sein. Sie soll nur die unter den definierten Themenblöcken identifizierten relevanten Informationen enthalten, jeweils unter den korrekten, festen Überschriften. Das Ergebnis muss valides Markdown sein und eine hohe Texttreue zum ursprünglichen `{html_code}` aufweisen, wobei die Formatierung jedes einzelnen HTML-Inputs konsistent und identisch ist, wenn man von den variierenden Inhalten absieht.
 
 Hier ist der zu verarbeitende Text:
 
 {html_code}
-
-Stelle sicher, dass der Output nur die extrahierten und formatierten relevanten Blöcke unter den korrekten Überschriften enthält und sonst nichts.
