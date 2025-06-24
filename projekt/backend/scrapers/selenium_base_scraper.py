@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, Dict, Optional, Any
+from typing import Dict, Optional, Any
 import time
 import random
 import logging
@@ -59,14 +59,12 @@ class SeleniumBaseScraper(ABC):
     def get_html_content(self) -> Optional[str]:
         """Gibt den HTML-Inhalt der aktuellen Seite zurück"""
         if not self.driver:
-            logger.error("Kein aktiver Client für HTML-Export")
             return None
 
         try:
             html_content = self.driver.page_source
             return html_content
-        except Exception as e:
-            logger.error(f"Fehler beim HTML-Export: {e}")
+        except Exception:
             return None
 
     def open_client(self, width: int = None, height: int = None) -> None:
@@ -84,8 +82,8 @@ class SeleniumBaseScraper(ABC):
         if self.driver:
             try:
                 self.driver.quit()
-            except Exception as e:
-                logger.warning(f"Fehler beim Schließen des Drivers: {e}")
+            except Exception:
+                pass
             finally:
                 self.driver = None
                 self.wait = None
@@ -139,7 +137,7 @@ class SeleniumBaseScraper(ABC):
             time.sleep(self.wait_time)
 
         except Exception as e:
-            logger.error(f"Fehler beim Starten des WebDrivers: {e}")
+            logger.error(f"WebDriver Setup fehlgeschlagen: {e}")
             self.driver = None
             self.wait = None
 
@@ -149,19 +147,15 @@ class SeleniumBaseScraper(ABC):
             self.open_client()
 
         if not self.driver:
-            logger.error(f"Kein aktiver Client zum Laden von {url}")
             return False
 
         for attempt in range(self.max_retries):
             try:
-                logger.info(f"Lade URL: {url}")
-
                 self.driver.get(url)
 
                 delay = random.uniform(self.page_delay_min, self.page_delay_max)
                 time.sleep(delay)
 
-                logger.info(f"✅ URL erfolgreich geladen: {url}")
                 return True
 
             except Exception as e:
@@ -172,11 +166,11 @@ class SeleniumBaseScraper(ABC):
                     )
                     time.sleep(backoff_time)
                 else:
-                    logger.error(f"❌ Alle {self.max_retries} Versuche für {url} fehlgeschlagen: {e}")
+                    logger.error(f"URL konnte nicht geladen werden: {url}")
         return False
 
     def scroll_to_bottom(self, custom_iterations: int = None, custom_wait: float = None) -> None:
-        """Scrollt mehrfach zum Ende der Seite mit konfigurierbaren Parametern"""
+        """Scrollt mehrfach zum Ende der Seite"""
         if not self.driver:
             return
 

@@ -21,3 +21,9 @@ Projekt für das Skrapten von Job auf Jobwebseiten
 - Speicherung der verarbeiteten Job Files in individualisierten ordner
 
 ### Code
+
+self.headless = headless
+    if self.headless:
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument(f"--window-size={width},{height}")

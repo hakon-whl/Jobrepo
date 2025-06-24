@@ -1,5 +1,5 @@
+# stepstone_scraper.py
 from typing import List, Optional
-import re
 import time
 import random
 from .request_base_scraper import RequestBaseScraper
@@ -12,21 +12,20 @@ logger = logging.getLogger(__name__)
 
 
 class StepstoneScraper(RequestBaseScraper):
-    """StepStone Job-Scraper mit erweiterten Konfigurationen"""
+    """StepStone Job-Scraper"""
 
     def __init__(self):
         super().__init__("StepStone")
-
         self.jobs_per_page_limit = getattr(app_config.scraping, 'jobs_per_page_limit', 100)
         self.max_pages = getattr(app_config.scraping, 'max_pages_per_site', 5)
 
     def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
-        """Sammelt Job-URLs von StepStone Suchseiten mit verbesserter Logik"""
+        """Sammelt Job-URLs von StepStone Suchseiten"""
         try:
             required = ["search_url_template", "job_url", "max_page_selector"]
             for key in required:
                 if not self.config.get(key):
-                    logger.error(f"Fehlende Konfiguration für StepStone: {key}")
+                    logger.error(f"StepStone Konfiguration fehlt: {key}")
                     return []
 
             params = search_criteria.to_stepstone_params()
@@ -35,7 +34,7 @@ class StepstoneScraper(RequestBaseScraper):
             url = self._construct_search_url(self.config["search_url_template"], params)
             html = self.get_html_content(url, is_page_request=True)
             if not html:
-                logger.error("Konnte erste Suchseite nicht laden.")
+                logger.error("StepStone Suchseite nicht erreichbar")
                 return []
 
             soup = BeautifulSoup(html, "lxml")
@@ -51,7 +50,7 @@ class StepstoneScraper(RequestBaseScraper):
             else:
                 total_pages = 1
 
-            logger.info(f"🔗 Sammle Jobs von {total_pages} Seite(n) (StepStone)")
+            logger.info(f"Sammle StepStone Jobs von {total_pages} Seite(n)")
 
             all_urls: List[str] = []
             job_conf = self.config["job_url"]
@@ -84,16 +83,13 @@ class StepstoneScraper(RequestBaseScraper):
                     return page_urls
 
                 except Exception as e:
-                    logger.error(f"Fehler beim Sammeln von Seite {page_num}: {e}")
+                    logger.error(f"StepStone Seite {page_num} Fehler: {e}")
                     return []
 
             all_urls.extend(collect_page(1))
 
             for page_num in range(2, total_pages + 1):
-                delay = random.uniform(
-                    self.page_request_delay_min,  # ✅ Aus Config statt hardcoded
-                    self.page_request_delay_max   # ✅ Aus Config statt hardcoded
-                )
+                delay = random.uniform(self.page_request_delay_min, self.page_request_delay_max)
                 time.sleep(delay)
 
                 page_urls = collect_page(page_num)
@@ -108,15 +104,15 @@ class StepstoneScraper(RequestBaseScraper):
             if len(unique_urls) > max_total_jobs:
                 unique_urls = unique_urls[:max_total_jobs]
 
-            logger.info(f"✅ Insgesamt {len(unique_urls)} einzigartige Job-URLs gesammelt")
+            logger.info(f"{len(unique_urls)} StepStone Jobs gefunden")
             return unique_urls
 
         except Exception as e:
-            logger.error(f"Fehler beim Sammeln der Job-URLs: {e}")
+            logger.error(f"StepStone URL-Sammlung fehlgeschlagen: {e}")
             return []
 
     def extract_job_details(self, job_page_url: str) -> Optional[JobDetails]:
-        """Extrahiert Job-Details von einer StepStone Job-Seite mit verbesserter Fehlerbehandlung"""
+        """Extrahiert Job-Details von einer StepStone Job-Seite"""
         try:
             html = self.get_html_content(job_page_url)
             if not html:
@@ -128,7 +124,7 @@ class StepstoneScraper(RequestBaseScraper):
             title_selector = self.config.get("job_titel_selector", "")
 
             if not content_selector or not title_selector:
-                logger.error("Content- oder Titel-Selektor fehlt in der Konfiguration.")
+                logger.error("StepStone Selektoren fehlen")
                 return None
 
             content_element = soup.select_one(content_selector)
@@ -138,12 +134,7 @@ class StepstoneScraper(RequestBaseScraper):
             if content_element:
                 raw_text = content_element.get_text(separator=' ', strip=True)
             else:
-                fallback_selectors = [
-                    ".job-description",
-                    "[data-testid='job-description']",
-                    ".jobad-content",
-                    "main"
-                ]
+                fallback_selectors = [".job-description", "[data-testid='job-description']", ".jobad-content", "main"]
                 for fallback in fallback_selectors:
                     fallback_element = soup.select_one(fallback)
                     if fallback_element:
@@ -176,5 +167,5 @@ class StepstoneScraper(RequestBaseScraper):
             )
 
         except Exception as e:
-            logger.error(f"Fehler beim Extrahieren von {job_page_url}: {e}")
+            logger.error(f"StepStone Job-Extraktion fehlgeschlagen: {e}")
             return None

@@ -99,11 +99,11 @@ class RequestBaseScraper(ABC):
             self.http_client = httpx.Client(**client_kwargs)
 
         except Exception as e:
-            logger.error(f"Fehler beim Starten des HTTP-Clients: {e}")
+            logger.error(f"HTTP-Client Setup fehlgeschlagen: {e}")
             self.http_client = None
 
     def _apply_anti_bot_measures(self, is_page_request: bool = False) -> None:
-        """Wendet Anti-Bot-Maßnahmen an (User-Agent, Delays)"""
+        """Wendet Anti-Bot-Maßnahmen an"""
         if not self.http_client:
             return
 
@@ -130,13 +130,10 @@ class RequestBaseScraper(ABC):
             self.open_client()
 
         if not self.http_client:
-            logger.error(f"Kein aktiver Client zum Laden von {url}")
             return None
 
         for attempt in range(self.max_retries):
             try:
-                logger.info(f"Lade URL: {url}")
-
                 self._apply_anti_bot_measures(is_page_request)
 
                 response = self.http_client.get(url)
@@ -147,7 +144,6 @@ class RequestBaseScraper(ABC):
                 except UnicodeDecodeError:
                     content = response.text
 
-                logger.info(f"✅ URL erfolgreich geladen: {url}")
                 return content
 
             except httpx.HTTPStatusError as e:
@@ -158,23 +154,22 @@ class RequestBaseScraper(ABC):
                     )
                     time.sleep(backoff_time)
                 elif e.response.status_code == 404:
-                    logger.error(f"❌ Seite nicht gefunden (404): {url}")
                     return None
                 else:
-                    logger.error(f"❌ HTTP Fehler {e.response.status_code} für {url}")
+                    logger.error(f"HTTP Fehler {e.response.status_code}: {url}")
                     return None
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 backoff_time = min(
                     self.retry_delay_max,
                     self.retry_delay_base * (attempt + 1) + random.uniform(0.5, 2)
                 )
                 time.sleep(backoff_time)
 
-            except Exception as e:
+            except Exception:
                 time.sleep(self.retry_delay_base)
 
-        logger.error(f"❌ Alle {self.max_retries} Versuche für {url} fehlgeschlagen")
+        logger.error(f"Alle Versuche für URL fehlgeschlagen: {url}")
         return None
 
     def close_client(self) -> None:
@@ -183,5 +178,5 @@ class RequestBaseScraper(ABC):
             try:
                 self.http_client.close()
                 self.http_client = None
-            except Exception as e:
-                logger.error(f"Fehler beim Schließen des HTTP-Clients: {e}")
+            except Exception:
+                pass
