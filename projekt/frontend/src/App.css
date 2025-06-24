@@ -1,27 +1,23 @@
-/* ========================================= */
-/* === Minimalistisches Apple-Design === */
-/* ========================================= */
 
 :root {
-  /* Apple-inspirierte Farbpalette mit warmen Beige-Tönen */
-  --primary-color: #007AFF; /* Apple Blue */
+  --primary-color: #007AFF;
   --primary-hover: #005BB5;
-  --text-primary: #1D1D1F; /* Apple Schwarz */
-  --text-secondary: #8B7355; /* Warmes Braun statt Grau */
-  --text-tertiary: #A68B5B; /* Helleres warmes Braun */
+  --text-primary: #1D1D1F;
+  --text-secondary: #8B7355;
+  --text-tertiary: #A68B5B;
 
-  --background: #FAF9F7; /* Warmes Off-White */
-  --surface: #FFFFFF; /* Reines Weiß */
-  --surface-secondary: #F5F3F0; /* Warmes helles Beige */
-  --surface-tertiary: #F0EDE8; /* Etwas dunkleres Beige */
+  --background: #FAF9F7;
+  --surface: #FFFFFF;
+  --surface-secondary: #F5F3F0;
+  --surface-tertiary: #F0EDE8;
 
-  --border-light: #E8E3DC; /* Warme Beige-Grenze */
-  --border-medium: #DDD6CC; /* Mittleres Beige */
+  --border-light: #E8E3DC;
+  --border-medium: #DDD6CC;
 
-  --success-color: #30D158; /* Apple Grün */
-  --error-color: #FF3B30; /* Apple Rot */
+  --success-color: #30D158;
+  --error-color: #FF3B30;
 
-  --shadow-subtle: 0 1px 3px rgba(139, 115, 85, 0.08); /* Warme Schatten */
+  --shadow-subtle: 0 1px 3px rgba(139, 115, 85, 0.08);
   --shadow-medium: 0 4px 16px rgba(139, 115, 85, 0.12);
 
   --radius: 12px;
