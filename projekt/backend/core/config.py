@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import List, Optional
 from enum import Enum
 import os
 import logging
@@ -86,38 +86,38 @@ class AIConfig:
 class ScrapingConfig:
     """Optimierte Scraping-Konfiguration"""
     # === ALLGEMEINE LIMITS ===
-    max_pages_per_site: int = 10  # Reduziert für Geschwindigkeit
-    max_jobs_per_session: int = 20  # Erhöht
-    max_total_jobs_per_site: int = 200  # Explizit definiert
+    max_pages_per_site: int = 10
+    max_jobs_per_session: int = 50
+    max_total_jobs_per_site: int = 200
     jobs_per_page_limit: int = 50
 
     # === REQUEST-TIMING (optimiert) ===
-    page_request_delay_min: float = 0.3  # Sehr schnell
+    page_request_delay_min: float = 0.3
     page_request_delay_max: float = 0.8
     item_request_delay_min: float = 0.2
     item_request_delay_max: float = 0.5
 
     # === RETRY-STRATEGIE ===
-    max_retries: int = 2  # Nur 1 Duplikat
+    max_retries: int = 2
     retry_delay_base: float = 1.5
     retry_delay_max: float = 10.0
     retry_on_status_codes: List[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
 
     # === TIMEOUTS (optimiert) ===
-    request_timeout: int = 15  # Reduziert
+    request_timeout: int = 15
     page_load_timeout: int = 12
     implicit_wait: int = 3
     explicit_wait: int = 8
 
     # === ANTI-BOT-MAßNAHMEN ===
-    user_agent_rotation_chance: float = 0.15  # Reduziert
+    user_agent_rotation_chance: float = 0.15
 
     # === SELENIUM-KONFIGURATION (optimiert) ===
-    selenium_emulate_mobile_default: bool = False  # Desktop ist oft schneller
-    selenium_wait_time_default: int = 1  # Reduziert
-    selenium_scroll_iterations_default: int = 10  # Stark reduziert
-    selenium_scroll_wait_time_default: int = 0.5  # Sehr schnell
-    selenium_window_width_default: int = 400  # Desktop-optimiert
+    selenium_emulate_mobile_default: bool = False
+    selenium_wait_time_default: int = 1
+    selenium_scroll_iterations_default: int = 10
+    selenium_scroll_wait_time_default: int = 0.5
+    selenium_window_width_default: int = 400
     selenium_window_height_default: int = 900
 @dataclass
 class LoggingConfig:
@@ -262,47 +262,26 @@ def get_site_config_by_string(site_name_str: str) -> dict | None:
         return None
 
 
-def setup_logging(config: LoggingConfig, logs_dir: str) -> None:
-    """Konfiguriert das Logging-System"""
-    import logging.handlers
+def setup_logging(logging_config, logs_dir):
+    """Minimal logging setup"""
 
-    # Root Logger konfigurieren
-    root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, config.level.upper()))
-
-    # Alle bestehenden Handler entfernen
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Formatter definieren
-    formatter = logging.Formatter(config.format)
-
-    # Console Handler
-    if config.console_logging:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        root_logger.addHandler(console_handler)
-
-    # File Handler
-    if config.file_logging:
+    # Nur kritische Config-Logs
+    if not os.path.exists(logs_dir):
         os.makedirs(logs_dir, exist_ok=True)
-        log_file = os.path.join(logs_dir, 'app.log')
 
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=config.max_file_size,
-            backupCount=config.backup_count,
-            encoding='utf-8'
-        )
-        file_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
+    # Basis Logging-Konfiguration ohne Ausgaben
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(os.path.join(logs_dir, 'app.log')),
+            logging.StreamHandler()
+        ]
+    )
 
-    # Erste Nachricht loggen
-    logger.info("Logging-System initialisiert")
-    logger.info(f"Log-Level: {config.level}")
-    logger.info(f"Console-Logging: {config.console_logging}")
-    logger.info(f"File-Logging: {config.file_logging}")
-
+    # Werkzeug und andere Libraries stumm schalten
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Globale App-Konfiguration
 app_config = AppConfig()
