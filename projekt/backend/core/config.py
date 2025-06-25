@@ -14,12 +14,9 @@ class JobSource(Enum):
     XING = "Xing"
     STELLENANZEIGEN = "Stellenanzeigen"
 
-
 class AIModel(Enum):
-    PRO = "gemini-2.5-pro-preview-05-06"
     FLASH = "gemini-2.5-flash-preview-05-20"
     FLASH_2 = "gemini-2.5-flash-lite-preview-06-17"
-
 
 @dataclass
 class PathConfig:
@@ -37,7 +34,6 @@ class PathConfig:
         """Erstellt alle notwendigen Verzeichnisse"""
         for dir_path in [self.temp_pdfs_dir, self.logs_dir]:
             os.makedirs(dir_path, exist_ok=True)
-
 
 @dataclass
 class AIConfig:
@@ -81,13 +77,12 @@ class AIConfig:
         """Legacy-Property für bestehenden Code"""
         return self.cover_letter_temperature
 
-
 @dataclass
 class ScrapingConfig:
     """Optimierte Scraping-Konfiguration"""
     # === ALLGEMEINE LIMITS ===
     max_pages_per_site: int = 10
-    max_jobs_per_session: int = 50
+    max_jobs_per_session: int = 20
     max_total_jobs_per_site: int = 200
     jobs_per_page_limit: int = 50
 
@@ -119,6 +114,7 @@ class ScrapingConfig:
     selenium_scroll_wait_time_default: int = 0.5
     selenium_window_width_default: int = 400
     selenium_window_height_default: int = 900
+
 @dataclass
 class LoggingConfig:
     """Konfiguration für Logging"""

@@ -174,32 +174,6 @@ Das System bewertet Jobs auf einer **1-10 Skala** basierend auf:
 
 **Jobs mit Rating ≥ 5** erhalten automatisch generierte Anschreiben.
 
-## 🛠️ Entwicklung
-
-### Backend erweitern
-Neue Scraper hinzufügen:
-```python
-# projekt/backend/scrapers/new_site_scraper.py
-class NewSiteScraper(RequestBaseScraper):
-    def __init__(self):
-        super().__init__("NewSite")
-    
-    def get_search_result_urls(self, search_criteria):
-        # Implementation
-        pass
-```
-
-### Frontend-Komponenten
-```jsx
-// projekt/frontend/src/components/NewComponent.js
-import React from 'react';
-
-const NewComponent = ({ props }) => {
-    return <div>Component Content</div>;
-};
-
-export default NewComponent;
-```
 
 **Hakon**
 - Student der Wirtschaftsinformatik - Informationstechnologie an der HM München

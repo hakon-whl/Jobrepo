@@ -68,7 +68,7 @@ class SeleniumBaseScraper(ABC):
             return None
 
     def open_client(self, width: int = None, height: int = None) -> None:
-        """Öffnet den Selenium-Client falls noch nicht aktiv"""
+        """Oeffnet den Selenium-Client falls noch nicht aktiv"""
         if self.driver:
             return
 
@@ -78,7 +78,7 @@ class SeleniumBaseScraper(ABC):
         self._setup_driver(width=width, height=height)
 
     def close_client(self) -> None:
-        """Schließt den Selenium WebDriver"""
+        """Schliest den Selenium WebDriver"""
         if self.driver:
             try:
                 self.driver.quit()
@@ -142,7 +142,7 @@ class SeleniumBaseScraper(ABC):
             self.wait = None
 
     def load_url(self, url: str) -> bool:
-        """Lädt eine URL im Browser mit Retry-Logik."""
+        """Laedt eine URL im Browser mit Retry-Logik."""
         if not self.driver:
             self.open_client()
 

@@ -94,7 +94,6 @@ def get_scraper_for_source(job_source: JobSource):
 @app.route('/api/create_job', methods=['POST'])
 def create_job_summary():
     scraper = None
-
     try:
         logger.info("Starte Job-Suche...")
 
