@@ -4,13 +4,8 @@ from projekt.backend.core.config import app_config
 
 
 class PromptManager:
-    """
-    Lädt Prompt-Templates aus dem Verzeichnis app_config.paths.prompts_dir
-    und befüllt sie per str.format().
-    """
 
     def __init__(self):
-        # app_config.paths.prompts_dir ist bereits ein pathlib.Path
         self.prompts_directory: Path = app_config.paths.prompts_dir
 
     def _load_prompt(self, name: str) -> str:
@@ -33,7 +28,4 @@ class PromptManager:
             )
 
     def get_available_prompts(self) -> List[str]:
-        """Listet alle Prompt-Dateien (ohne .txt) sortiert auf."""
-        return sorted(
-            p.stem for p in self.prompts_directory.glob("*.txt")
-        )
+        return sorted(p.stem for p in self.prompts_directory.glob("*.txt"))

@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 class JobSource(Enum):
-    STEPSTONE       = "StepStone"
-    XING            = "Xing"
+    STEPSTONE = "StepStone"
+    XING = "Xing"
     STELLENANZEIGEN = "Stellenanzeigen"
 
 class AIModel(Enum):
@@ -25,25 +25,23 @@ class PathConfig:
     def build_dir(self) -> Path:
         return self.frontend_dir / "build"
 
-
 @dataclass
 class AIConfig:
-    gemini_api_key: str = field(default_factory=lambda: os.getenv('AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo'))
+    gemini_api_key: str = field(default_factory=lambda: os.getenv("AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo"))
 
     cover_letter_model_premium: AIModel = AIModel.GEMENI_PRO
     cover_letter_temperature_premium: float = 0.5
-    cover_letter_min_rating_premium: float = 8
+    cover_letter_min_rating_premium: int = 8
 
     cover_letter_model: AIModel = AIModel.GEMENI_FLASH
     cover_letter_temperature: float = 0.5
-    cover_letter_min_rating: float = 5
+    cover_letter_min_rating: int = 5
 
     formatting_model: AIModel = AIModel.GEMENI_FLASH
     formatting_temperature: float = 0.2
 
     rating_model: AIModel = AIModel.GEMINI_FLASH_CHEAP
     rating_temperature: float = 0.01
-
 
 @dataclass
 class ScrapingConfig:
@@ -58,9 +56,7 @@ class ScrapingConfig:
     max_retries: int = 2
     retry_delay_base: float = 1.5
     retry_delay_max: float = 10.0
-    retry_on_status_codes: List[int] = field(
-        default_factory=lambda: [429, 500, 502, 503, 504]
-    )
+    retry_on_status_codes: List[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
 
     request_timeout: int = 15
     page_load_timeout: int = 12
@@ -69,13 +65,12 @@ class ScrapingConfig:
 
     user_agent_rotation_chance: float = 0.15
 
-    selenium_emulate_mobile_default: bool   = False
-    selenium_wait_time_default: int        = 1
-    selenium_scroll_iterations_default: int= 10
+    selenium_emulate_mobile_default: bool = False
+    selenium_wait_time_default: int = 1
+    selenium_scroll_iterations_default: int = 10
     selenium_scroll_wait_time_default: float = 0.5
-    selenium_window_width_default: int     = 400
-    selenium_window_height_default: int    = 900
-
+    selenium_window_width_default: int = 400
+    selenium_window_height_default: int = 900
 
 SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
     JobSource.STEPSTONE: {
@@ -89,7 +84,6 @@ SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
         "job_content_selector": 'div[data-at="job-ad-content"]',
         "job_titel_selector": 'strong[data-at="header-job-title"]',
     },
-
     JobSource.XING: {
         "base_url": "https://www.xing.com",
         "search_url_template": "/jobs/search?keywords={jobTitle}&location={location}&radius={radius}",
@@ -100,7 +94,6 @@ SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
         "job_content_selector": "div[data-testid='expandable-content']",
         "job_titel_selector": "h2[data-xds='Headline']",
     },
-
     JobSource.STELLENANZEIGEN: {
         "base_url": "https://www.stellenanzeigen.de/",
         "search_url_template": "/suche/?fulltext={jobTitle}&locationIds={location}&perimeterRadius={radius}",
