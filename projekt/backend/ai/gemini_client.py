@@ -1,36 +1,38 @@
 import google.generativeai as genai
-import logging
+from typing import Optional
 from projekt.backend.core.config import app_config
-
-logger = logging.getLogger(__name__)
 
 
 class GeminiClient:
-    @classmethod
-    def get_api_key(self) -> str:
-        api_key = app_config.ai.gemini_api_key
-        if not api_key:
-            raise ValueError("Gemini API-Schlüssel ist erforderlich")
-        return api_key
+    """
+    Wrapper um google.generativeai; konfiguriert mit api_key aus app_config.
+    """
+
+    _initialized: bool = False
 
     @classmethod
-    def initialize(self) -> None:
-        api_key = self.get_api_key()
-        genai.configure(api_key=api_key)
+    def _initialize(cls) -> None:
+        if not cls._initialized:
+            api_key = app_config.ai.gemini_api_key
+            if not api_key:
+                raise ValueError("Gemini API-Schlüssel ist erforderlich")
+            genai.configure(api_key=api_key)
+            cls._initialized = True
 
-    @staticmethod
-    def create_model(model_type: str, temperature: float):
+    @classmethod
+    def generate_content(
+        cls,
+        prompt: str,
+        model_type: str,
+        temperature: float,
+        max_tokens: Optional[int] = None
+    ) -> str:
+        cls._initialize()
         model = genai.GenerativeModel(model_type)
-        generation_config = genai.GenerationConfig(temperature=temperature)
-        return model, generation_config
-
-    @classmethod
-    def generate_content(self, prompt: str, model_type: str, temperature: float) -> str:
-        try:
-            self.initialize()
-            model, generation_config = self.create_model(model_type, temperature)
-            response = model.generate_content(prompt, generation_config=generation_config)
-            return response.text or ""
-        except Exception as e:
-            logger.error(f"AI Content-Generierung Fehler: {e}")
-            raise
+        gen_cfg = genai.GenerationConfig(temperature=temperature)
+        if max_tokens is not None:
+            gen_cfg.max_output_tokens = max_tokens
+        response = model.generate_content(
+            prompt, generation_config=gen_cfg
+        )
+        return response.text or ""

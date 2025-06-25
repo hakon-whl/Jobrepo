@@ -1,74 +1,39 @@
-import os
-import logging
-from typing import Dict, Optional
 from pathlib import Path
-
-logger = logging.getLogger(__name__)
+from typing import List
+from projekt.backend.core.config import app_config
 
 
 class PromptManager:
-    """Verwaltet und lädt Prompt-Templates aus Dateien"""
+    """
+    Lädt Prompt-Templates aus dem Verzeichnis app_config.paths.prompts_dir
+    und befüllt sie per str.format().
+    """
 
-    def __init__(self, prompts_directory: str):
-        self.prompts_directory = Path(prompts_directory)
-        # self._prompt_cache: Dict[str, str] = {} # Dieser Teil wurde entfernt
-        self._validate_prompts_directory()
+    def __init__(self):
+        # app_config.paths.prompts_dir ist bereits ein pathlib.Path
+        self.prompts_directory: Path = app_config.paths.prompts_dir
 
-    def _validate_prompts_directory(self) -> None:
-        """Validiert das Prompts-Verzeichnis"""
-        if not self.prompts_directory.exists():
-            logger.error(f"Prompts-Verzeichnis existiert nicht: {self.prompts_directory}")
-            raise FileNotFoundError(f"Prompts-Verzeichnis nicht gefunden: {self.prompts_directory}")
-
-        if not self.prompts_directory.is_dir():
-            logger.error(f"Prompts-Pfad ist kein Verzeichnis: {self.prompts_directory}")
-            raise NotADirectoryError(f"Prompts-Pfad ist kein Verzeichnis: {self.prompts_directory}")
-
-    def _load_prompt_from_file(self, prompt_name: str) -> str:
-        """Lädt einen Prompt aus einer Datei"""
-        prompt_file = self.prompts_directory / f"{prompt_name}.txt"
-
+    def _load_prompt(self, name: str) -> str:
+        prompt_file = self.prompts_directory / f"{name}.txt"
         if not prompt_file.exists():
-            available_prompts = self.get_available_prompts()
-            logger.error(f"Prompt-Datei nicht gefunden: {prompt_file}")
-            logger.info(f"Verfügbare Prompts: {available_prompts}")
-            raise FileNotFoundError(f"Prompt-Datei nicht gefunden: {prompt_file}")
+            available = self.get_available_prompts()
+            raise FileNotFoundError(
+                f"Prompt-Datei nicht gefunden: {prompt_file}. "
+                f"Verfügbare Prompts: {available}"
+            )
+        return prompt_file.read_text(encoding="utf-8").strip()
 
+    def get_prompt(self, name: str, **kwargs) -> str:
+        template = self._load_prompt(name)
         try:
-            with open(prompt_file, 'r', encoding='utf-8') as file:
-                content = file.read().strip()
-                logger.debug(f"Prompt '{prompt_name}' erfolgreich geladen ({len(content)} Zeichen)")
-                return content
-        except Exception as e:
-            logger.error(f"Fehler beim Laden der Prompt-Datei '{prompt_file}': {e}")
-            raise
-
-    def get_prompt(self, prompt_name: str, **kwargs) -> str:
-        """
-        Holt einen Prompt und ersetzt Platzhalter
-        """
-        prompt_template = self._load_prompt_from_file(prompt_name) # Jetzt wird immer neu geladen
-
-        # Ersetze Platzhalter
-        try:
-            formatted_prompt = prompt_template.format(**kwargs)
-            logger.debug(f"Prompt '{prompt_name}' erfolgreich formatiert mit {len(kwargs)} Variablen")
-            return formatted_prompt
+            return template.format(**kwargs)
         except KeyError as e:
-            logger.error(f"Fehlender Platzhalter in Prompt '{prompt_name}': {e}")
-            logger.debug(f"Verfügbare Variablen: {list(kwargs.keys())}")
-            raise ValueError(f"Fehlender Platzhalter in Prompt '{prompt_name}': {e}")
-        except Exception as e:
-            logger.error(f"Fehler beim Formatieren des Prompts '{prompt_name}': {e}")
-            raise
+            raise ValueError(
+                f"Fehlender Platzhalter in '{name}.txt': {e}"
+            )
 
-    def get_available_prompts(self) -> list:
-        """Gibt eine Liste aller verfügbaren Prompts zurück"""
-        if not self.prompts_directory.exists():
-            return []
-
-        prompts = []
-        for file_path in self.prompts_directory.glob("*.txt"):
-            prompts.append(file_path.stem)
-
-        return sorted(prompts)
+    def get_available_prompts(self) -> List[str]:
+        """Listet alle Prompt-Dateien (ohne .txt) sortiert auf."""
+        return sorted(
+            p.stem for p in self.prompts_directory.glob("*.txt")
+        )
