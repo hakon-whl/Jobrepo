@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useForm, Controller } from "react-hook-form";
 import { JOB_SITES, DISCIPLINES } from "../constants/enums";
 import SkillsManager from "./SkillsManager";
-import { extractTextFromPdfBlob } from "../services/pdf";
+import { extractTextFromPdfBlob } from "../App";
 
 /**
  * Hauptformular für die Bewerbungsdaten-Erfassung
