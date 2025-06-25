@@ -28,7 +28,7 @@ class PathConfig:
 
 @dataclass
 class AIConfig:
-    gemini_api_key: str = field(default_factory=lambda: os.getenv("AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo"))
+    gemini_api_key: str = field(default_factory=lambda: os.getenv('AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo'))
 
     cover_letter_model_premium: AIModel = AIModel.GEMENI_PRO
     cover_letter_temperature_premium: float = 0.5
