@@ -4,13 +4,8 @@ import unicodedata
 import re
 
 
-def extract_attribute_from_selector(
-        html_content: str, selector: str, attribute: str = "href"
-) -> List[str]:
+def extract_attribute_from_selector(html_content: str, selector: str, attribute: str = "href") -> List[str]:
     urls = []
-    if not html_content:
-        return urls
-
     try:
         soup = BeautifulSoup(html_content, "lxml")
         for element in soup.select(selector):
@@ -23,9 +18,7 @@ def extract_attribute_from_selector(
     return urls
 
 
-def extract_text_from_selector(
-        html_content: str, selector: str
-) -> Optional[str]:
+def extract_text_from_selector(html_content: str, selector: str) -> Optional[str]:
     if not html_content:
         return None
 
