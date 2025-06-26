@@ -1,9 +1,12 @@
-from projekt.backend.ai import text_processor
-from projekt.backend.core import (app_config, models)
-from projekt.backend.core.models import JobDetailsScraped
 
-app_config.ai.gemini_api_key = "AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo"
-
+from projekt.backend.ai.text_processor import TextProcessor
+from projekt.backend.core.config import app_config
+from projekt.backend.core.models import (
+    ApplicantProfile,
+    JobDetailsScraped,
+    JobSource,
+    AIModel
+)
 
 JOB_DESCRIPTION = """
 <!DOCTYPE html>
@@ -96,45 +99,50 @@ JOB_DESCRIPTION = """
 </html>
 """
 
+# Korrekte Struktur für Test-Applicants
 APPLICANTS = {
-    "Alice": {
-        "profile": models.ApplicantProfile(
-            study_info="Wirtschaftsinformatik an der HM München, 5. Semester",
-            interests="Softwaretesting, Datenanalyse, agile Methoden",
-            skills=["Python", "SQL", "Git", "Scrum", "Test-Automation"]
-        )
-    },
-    "Bob": {
-        "profile": models.ApplicantProfile(
-            study_info="Betriebswirtschaftslehre an der LMU München, 4. Semester",
-            interests="Projektmanagement, Stakeholder-Management, Prozessoptimierung",
-            skills=["Excel", "PowerPoint", "Kommunikation", "Teamarbeit"]
-        )
-    }
+    "Alice": ApplicantProfile(
+        study_info="Wirtschaftsinformatik an der HM München, 5. Semester",
+        interests="Softwaretesting, Datenanalyse, agile Methoden",
+        skills=["Python", "SQL", "Git", "Scrum", "Test-Automation"]
+    ),
+    "Bob": ApplicantProfile(
+        study_info="Betriebswirtschaftslehre an der LMU München, 4. Semester",
+        interests="Projektmanagement, Stakeholder-Management, Prozessoptimierung",
+        skills=["Excel", "PowerPoint", "Kommunikation", "Teamarbeit"]
+    )
 }
 
+
 def main():
-    tp = text_processor.TextProcessor()
+    tp = TextProcessor()
 
     formatted = tp.format_job_description(JOB_DESCRIPTION)
+    print("Formatiert:", formatted[:200])
 
     job = JobDetailsScraped(
         title="Praktikant Softwaretests & Business Analyse",
         raw_text=JOB_DESCRIPTION,
         url="https://example.com/job",
-        source=models.JobSource.STEPSTONE
+        source=JobSource.STEPSTONE
     )
 
-    for name, data in APPLICANTS.items():
-        profile = data["profile"]
-        print(f"\n--- Ergebnisse für {name} ---")
+    for name, profile in APPLICANTS.items():
+        print(f"\n--- {name} ---")
 
         rating = tp.rate_job_match(job, profile)
-        print(f"Job-Match Rating: {rating}/10")
+        print(f"Rating: {rating}/10")
+        if rating >= app_config.ai.cover_letter_min_rating_premium:
+            cover_letter = tp.generate_anschreiben(job, profile, app_config.ai.cover_letter_model_premium.value)
+            print(app_config.ai.cover_letter_model_premium.value)
+            snippet = cover_letter[:300].replace("\n", " ")
+            print(f"Anschreiben: {snippet}...")
+        elif rating >= app_config.ai.cover_letter_min_rating:
+            cover_letter = tp.generate_anschreiben(job, profile, app_config.ai.cover_letter_model.value)
+            snippet = cover_letter[:300].replace("\n", " ")
+            print(app_config.ai.cover_letter_model.value)
+            print(f"Anschreiben: {snippet}...")
 
-        cover_letter = tp.generate_anschreiben(job, profile)
-        snippet = cover_letter[:300].replace("\n", " ")
-        print(f"\nAnschreiben (erste 300 Zeichen):\n{snippet}…\n")
 
 if __name__ == "__main__":
     main()

@@ -1,15 +1,14 @@
 from projekt.backend.ai.prompt_manager import PromptManager
 from projekt.backend.ai.gemini_client import GeminiClient
 from projekt.backend.core.config import app_config
-from projekt.backend.core.models import ApplicantProfile, JobDetailsScraped
-
+from projekt.backend.core.models import ApplicantProfile, JobDetailsScraped, AIModel
 
 class TextProcessor:
 
     def __init__(self):
         self.pm = PromptManager()
 
-    def generate_anschreiben(self, job_details: JobDetailsScraped, applicant_profile: ApplicantProfile) -> str:
+    def generate_anschreiben(self, job_details: JobDetailsScraped, applicant_profile: ApplicantProfile, model: str ) -> str:
         prompt = self.pm.get_prompt(
             "cover_letter_generation",
             job_description=(
@@ -21,7 +20,7 @@ class TextProcessor:
         )
         return GeminiClient.generate_content(
             prompt=prompt,
-            model_type=app_config.ai.cover_letter_model.value,
+            model_type=model,
             temperature=app_config.ai.cover_letter_temperature
         )
 
