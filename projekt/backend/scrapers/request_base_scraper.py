@@ -20,6 +20,9 @@ class RequestBaseScraper(ABC):
 
         self.request_timeout = cfg.request_timeout
 
+        self.legit_job_counter = 0
+        self.max_jobs_to_prozess_session = cfg.max_jobs_to_prozess_session
+
         self.session: Optional[requests.Session] = None
 
     def open_client(self) -> None:
