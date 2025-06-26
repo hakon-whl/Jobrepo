@@ -1,90 +1,49 @@
-import markdown
-from xhtml2pdf import pisa
-import io
 import os
 import re
-import PyPDF2
-import logging
+import io
+import markdown
+from xhtml2pdf import pisa
+from PyPDF2 import PdfMerger
 
-logger = logging.getLogger(__name__)
+def _clean(text: str) -> str:
+    return re.sub(r'```(?:markdown)?\n?|```', '', text or '').strip()
 
+def markdown_to_pdf(cover_letter: str, dest: str, title: str, link: str, rating: int = None) -> bool:
+    parts = []
+    if rating is not None:
+        parts.append(f"## {rating} von 10")
+    if title:
+        parts.append(f"## {title}")
 
-class PdfUtils:
-    @staticmethod
-    def markdown_to_pdf(markdown_string, path, job_titel, link, rating, anschreiben=None):
-        try:
-            cleaned_job_description = re.sub(r'```markdown|```', '', markdown_string).strip()
-            cleaned_job_anschreiben = re.sub(r'```markdown|```', '', anschreiben).strip() if anschreiben else ""
+    if cover_letter:
+        parts.append("## Anschreiben")
+        parts.append(_clean(cover_letter))
 
-            all_content_blocks = []
-            if rating is not None:
-                all_content_blocks.append(f"## {str(rating).strip()} von 10")
-            if job_titel:
-                all_content_blocks.append(f"## {job_titel.strip()}")
-            if cleaned_job_description:
-                all_content_blocks.append(cleaned_job_description)
-            if cleaned_job_anschreiben and cleaned_job_anschreiben.strip():
-                all_content_blocks.append("## Anschreiben\n\n" + cleaned_job_anschreiben.strip())
+    parts.append(f"[Original Job Posting]({link})")
 
-            link_markdown = f"[Original Job Posting]({link})"
-            all_content_blocks.append(link_markdown)
+    html = markdown.markdown("\n\n".join(parts))
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
 
-            final_markdown_input = "\n\n".join(filter(None, all_content_blocks))
-            html_string = markdown.markdown(final_markdown_input)
-            source_html = io.BytesIO(html_string.encode('UTF-8'))
+    with open(dest, "wb") as f:
+        err = pisa.CreatePDF(io.StringIO(html), dest=f).err
+    return not err
 
-            with open(path, "w+b") as output_file:
-                pisa_status = pisa.pisaDocument(source_html, dest=output_file, encoding='UTF-8')
+def merge_pdfs_by_rating(src_dir: str, dest: str) -> bool:
+    """Führt alle PDFs in src_dir nach Rating (aus Dateinamen) zusammen."""
+    def rate(fn):
+        m = re.match(r'(\d+)_', fn)
+        return int(m.group(1)) if m else -1
 
-            return not pisa_status.err
-        except Exception as e:
-            logger.error(f"PDF-Erstellung Fehler: {e}")
-            return False
+    pdfs = sorted(
+        [f for f in os.listdir(src_dir) if f.lower().endswith('.pdf')],
+        key=rate,
+        reverse=True
+    )
 
-    @staticmethod
-    def get_rating_from_filename(filename):
-        match = re.search(r'^(\d+)_', filename)
-        if match:
-            try:
-                return int(match.group(1))
-            except ValueError:
-                return None
-        return None
-
-    @staticmethod
-    def merge_pdfs_by_rating(source_dir, output_filepath):
-        if not os.path.isdir(source_dir):
-            return False
-
-        pdf_files_info = []
-        for entry_name in os.listdir(source_dir):
-            full_path = os.path.join(source_dir, entry_name)
-            if os.path.isfile(full_path) and entry_name.lower().endswith('.pdf'):
-                rating = PdfUtils.get_rating_from_filename(entry_name)
-                pdf_files_info.append((rating if rating is not None else -1, full_path))
-
-        if not pdf_files_info:
-            return False
-
-        sorted_pdf_files = sorted(pdf_files_info, key=lambda item: item[0], reverse=True)
-        merger = PyPDF2.PdfMerger()
-
-        try:
-            for rating, pdf_path in sorted_pdf_files:
-                try:
-                    with open(pdf_path, 'rb') as pdf_file:
-                        merger.append(pdf_file)
-                except Exception:
-                    continue
-
-            output_dir = os.path.dirname(output_filepath)
-            if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir, exist_ok=True)
-
-            with open(output_filepath, 'wb') as output_pdf_file:
-                merger.write(output_pdf_file)
-
-            return True
-        except Exception as e:
-            logger.error(f"PDF-Merge Fehler: {e}")
-            return False
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    merger = PdfMerger()
+    for pdf in pdfs:
+        merger.append(os.path.join(src_dir, pdf))
+    merger.write(dest)
+    merger.close()
+    return True

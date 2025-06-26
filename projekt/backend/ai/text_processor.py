@@ -1,7 +1,7 @@
 from projekt.backend.ai.prompt_manager import PromptManager
 from projekt.backend.ai.gemini_client import GeminiClient
 from projekt.backend.core.config import app_config
-from projekt.backend.core.models import ApplicantProfile, JobDetails
+from projekt.backend.core.models import ApplicantProfile, JobDetailsScraped
 
 
 class TextProcessor:
@@ -9,11 +9,11 @@ class TextProcessor:
     def __init__(self):
         self.pm = PromptManager()
 
-    def generate_anschreiben(self, job_details: JobDetails, applicant_profile: ApplicantProfile) -> str:
+    def generate_anschreiben(self, job_details: JobDetailsScraped, applicant_profile: ApplicantProfile) -> str:
         prompt = self.pm.get_prompt(
             "cover_letter_generation",
             job_description=(
-                job_details.formatted_description
+                job_details.raw_text
                 or job_details.raw_text
             ),
             applicant_profile=applicant_profile.to_ai_prompt_format(),
@@ -25,12 +25,12 @@ class TextProcessor:
             temperature=app_config.ai.cover_letter_temperature
         )
 
-    def rate_job_match(self, job_details: JobDetails, applicant_profile: ApplicantProfile) -> int:
+    def rate_job_match(self, job_details: JobDetailsScraped, applicant_profile: ApplicantProfile) -> int:
         prompt = self.pm.get_prompt(
             "job_rating",
             applicant_profile=applicant_profile.to_ai_prompt_format(),
             job_description=(
-                job_details.formatted_description
+                job_details.title
                 or job_details.raw_text
             )
         )

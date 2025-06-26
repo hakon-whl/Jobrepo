@@ -1,18 +1,9 @@
-import os
-import sys
+from projekt.backend.ai import text_processor
+from projekt.backend.core import (app_config, models)
+from projekt.backend.core.models import JobDetailsScraped
 
-# Damit "import projekt.backend..." funktioniert:
-TEST_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TEST_DIR, os.pardir))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-from projekt.backend.core.config import app_config
 app_config.ai.gemini_api_key = "AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo"
 
-
-from projekt.backend.ai.text_processor import TextProcessor
-from projekt.backend.core.models import ApplicantProfile, JobDetails, JobSource
 
 JOB_DESCRIPTION = """
 <!DOCTYPE html>
@@ -107,14 +98,14 @@ JOB_DESCRIPTION = """
 
 APPLICANTS = {
     "Alice": {
-        "profile": ApplicantProfile(
+        "profile": models.ApplicantProfile(
             study_info="Wirtschaftsinformatik an der HM München, 5. Semester",
             interests="Softwaretesting, Datenanalyse, agile Methoden",
             skills=["Python", "SQL", "Git", "Scrum", "Test-Automation"]
         )
     },
     "Bob": {
-        "profile": ApplicantProfile(
+        "profile": models.ApplicantProfile(
             study_info="Betriebswirtschaftslehre an der LMU München, 4. Semester",
             interests="Projektmanagement, Stakeholder-Management, Prozessoptimierung",
             skills=["Excel", "PowerPoint", "Kommunikation", "Teamarbeit"]
@@ -123,24 +114,17 @@ APPLICANTS = {
 }
 
 def main():
-    tp = TextProcessor()
+    tp = text_processor.TextProcessor()
 
-    # 1) Job-Beschreibung formatieren
-    print("\n=== Formatted Job Description ===\n")
     formatted = tp.format_job_description(JOB_DESCRIPTION)
-    print(formatted[:500] + "\n…\n")
 
-    # JobDetails mit formatiertem Text
-    job = JobDetails(
+    job = JobDetailsScraped(
         title="Praktikant Softwaretests & Business Analyse",
-        title_clean="Praktikant Softwaretests & Business Analyse",
         raw_text=JOB_DESCRIPTION,
-        formatted_description=formatted,
         url="https://example.com/job",
-        source_site=JobSource.STEPSTONE
+        source=models.JobSource.STEPSTONE
     )
 
-    # 2) Für jeden Bewerber: Rating und Anschreiben
     for name, data in APPLICANTS.items():
         profile = data["profile"]
         print(f"\n--- Ergebnisse für {name} ---")
