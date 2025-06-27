@@ -1,8 +1,15 @@
-# xing_scraper.py
-from typing import List, Optional
+import time
+from typing import List
+from urllib.parse import quote_plus, urljoin
+
+from httpcore import TimeoutException
+from selenium.webdriver import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+
 from .selenium_base_scraper import SeleniumBaseScraper
 from bs4 import BeautifulSoup
-from projekt.backend.core.models import JobDetails, SearchCriteria, JobSource
+from projekt.backend.core.models import JobDetailsScraped, SearchCriteria, JobSource
 from projekt.backend.core.config import app_config
 import logging
 
@@ -10,145 +17,114 @@ logger = logging.getLogger(__name__)
 
 
 class XingScraper(SeleniumBaseScraper):
-    """XING Job-Scraper mit angepassten Konfigurationen"""
-
     def __init__(self):
         super().__init__("Xing")
-        self.max_jobs_limit = getattr(app_config.scraping, 'max_total_jobs_per_site', 100)
+        self.config = app_config.site_configs[JobSource.XING.value]
+        self.base_url = self.config["base_url"]
 
-    def get_search_result_urls(self, search_criteria: SearchCriteria) -> List[str]:
-        """Sammelt Job-URLs von der XING-Suchseite"""
-        try:
-            self.open_client()
-            if not self.driver:
-                logger.error("XING Client konnte nicht geöffnet werden")
-                return []
+        sc = app_config.scraping
+        self.scroll_wait_time = sc.selenium_scroll_wait_time_default / 2
+        self.scroll_load_timeout = sc.request_timeout / 3
+        self.scroll_stable_checks = 1
 
-            search_url = self._construct_search_url(
-                self.config.get("search_url_template"),
-                search_criteria.to_xing_params()
-            )
+    def build_search_url(self, search_criteria: SearchCriteria) -> str:
+        params = search_criteria.to_xing_params()
 
-            if not self.load_url(search_url):
-                logger.error("XING-Suchseite konnte nicht geladen werden")
-                return []
+        job_title_encoded = quote_plus(params["jobTitle"])
+        location_encoded = quote_plus(params["location"])
 
-            self.scroll_to_bottom()
+        search_path = self.config["search_url_template"].format(
+            jobTitle=job_title_encoded,
+            location=location_encoded,
+            radius=params["radius"],
+            discipline=params.get("discipline", ""),
+        )
+        return urljoin(self.base_url, search_path)
 
-            html_content = self.get_html_content()
-            if not html_content:
-                return []
+    def extract_job_urls(self) -> List[str]:
+        html = self.get_html_content()
+        soup = BeautifulSoup(html, "html.parser")
+        cfg = self.config["job_url"]
+        selector = cfg["selector"]
+        attribute = cfg["attribute"]
 
-            soup = BeautifulSoup(html_content, 'html.parser')
+        links = soup.select(selector)
+        urls = {
+            urljoin(self.base_url, a.get(attribute))
+            for a in links
+            if a.get(attribute)
+        }
+        return list(urls)
 
-            job_url_config = self.config.get("job_url", {})
-            selector = job_url_config.get("selector")
-            attribute = job_url_config.get("attribute")
-
-            if not selector or not attribute:
-                logger.error("XING Job-URL-Konfiguration fehlt")
-                return []
-
-            job_elements = soup.select(selector)
-            job_urls = []
-
-            for element in job_elements:
-                url = element.get(attribute)
-                if url:
-                    if url.startswith("/"):
-                        url = self.base_url + url
-                    elif not url.startswith("http"):
-                        url = self.base_url + "/" + url
-
-                    if "xing.com" in url and "/jobs/" in url:
-                        job_urls.append(url)
-
-            unique_urls = list(set(job_urls))
-
-            if len(unique_urls) > self.max_jobs_limit:
-                unique_urls = unique_urls[:self.max_jobs_limit]
-
-            logger.info(f"{len(unique_urls)} XING Jobs gefunden")
-            return unique_urls
-
-        except Exception as e:
-            logger.error(f"XING URL-Sammlung fehlgeschlagen: {e}")
-            return []
-
-    def extract_job_details(self, job_page_url: str) -> Optional[JobDetails]:
-        """Extrahiert Job-Details von einer XING Job-Seite"""
-        try:
-            if not self.driver:
-                self.open_client()
-
-            if not self.driver or not self.load_url(job_page_url):
-                return None
-
-            html_content = self.get_html_content()
-            if not html_content:
-                return None
-
-            soup = BeautifulSoup(html_content, 'html.parser')
-
-            content_selector = self.config.get("job_content_selector")
-            title_selector = self.config.get("job_titel_selector")
-
-            content_element = soup.select_one(content_selector) if content_selector else None
-            title_element = soup.select_one(title_selector) if title_selector else None
-
-            raw_text = ""
-            if content_element:
-                raw_text = content_element.get_text(separator=' ', strip=True)
-                raw_text = self._clean_xing_text(raw_text)
-
-            job_title = ""
-            if title_element:
-                job_title = title_element.get_text(strip=True)
-                job_title = self._clean_xing_title(job_title)
-
-            if not job_title:
-                job_title = "Titel nicht extrahierbar"
-
-            if not raw_text:
-                raw_text = "Kein Text extrahierbar"
-
-            return JobDetails(
-                title=job_title,
-                title_clean="",
-                raw_text=raw_text,
-                url=job_page_url,
-                source_site=JobSource.XING
-            )
-
-        except Exception as e:
-            logger.error(f"XING Job-Extraktion fehlgeschlagen: {e}")
+    def extract_job_details_scraped(self, job_url: str) -> JobDetailsScraped | None:
+        if self.legit_job_counter >= app_config.scraping.max_jobs_to_prozess_session:
+            if not self.close_client:
+                self.close_client()
             return None
+        try:
+            self.load_url(job_url)
+            html = self.get_html_content()
+            soup = BeautifulSoup(html, "html.parser")
 
-    def _clean_xing_text(self, text: str) -> str:
-        """XING-spezifische Textbereinigung"""
-        if not text:
-            return text
+            title_el = soup.select_one(self.config["job_titel_selector"])
+            title = title_el.get_text(strip=True) if title_el else "Titel nicht gefunden"
 
-        unwanted_phrases = [
-            "Jetzt bewerben",
-            "Bei XING anmelden",
-            "Profil vervollständigen",
-            "XING Mitglied werden"
-        ]
+            content_el = soup.select_one(self.config["job_content_selector"])
+            raw_text = ""
+            if content_el:
+                for tag in content_el(["script", "style"]):
+                    tag.decompose()
+                raw_text = content_el.get_text(strip=True)
 
-        for phrase in unwanted_phrases:
-            text = text.replace(phrase, "")
+            return JobDetailsScraped(
+                title=title,
+                raw_text=raw_text,
+                url=job_url,
+                source=JobSource.STEPSTONE
+            )
 
-        return " ".join(text.split()).strip()
+        except Exception as e:
+            return JobDetailsScraped(
+                title="Fehler beim Extrahieren",
+                raw_text=f"Konnte Details nicht extrahieren: {e}",
+                url=job_url,
+                source=JobSource.STEPSTONE
+            )
 
-    def _clean_xing_title(self, title: str) -> str:
-        """XING-spezifische Titel-Bereinigung"""
-        if not title:
-            return title
+    def get_to_bottom(self, scroll_iterations: int) -> None:
+        if not self.driver:
+            return
 
-        unwanted_parts = ["| XING Jobs", "- XING", "Jobs bei"]
+        body = self.driver.find_element(By.TAG_NAME, "body")
+        last_height = self.driver.execute_script(
+            "return document.documentElement.scrollHeight;"
+        )
+        stable = 0
 
-        for part in unwanted_parts:
-            title = title.replace(part, "")
+        for _ in range(scroll_iterations):
+            self.driver.execute_script(
+                "window.scrollTo(0, document.documentElement.scrollHeight);"
+            )
+            body.send_keys(Keys.END)
 
-        return title.strip()
+            try:
+                WebDriverWait(self.driver, self.scroll_load_timeout).until(
+                    lambda d: d.execute_script(
+                        "return document.documentElement.scrollHeight;"
+                    ) > last_height
+                )
+                last_height = self.driver.execute_script(
+                    "return document.documentElement.scrollHeight;"
+                )
+                stable = 0
+            except TimeoutException:
+                stable += 1
+
+            time.sleep(self.scroll_wait_time)
+
+            if stable >= self.scroll_stable_checks:
+                logger.info(
+                    f"[{self.site_name}] get_to_bottom: "
+                    "keine neuen Inhalte, breche ab"
+                )
+                break
