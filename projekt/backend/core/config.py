@@ -4,15 +4,25 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List
 
+BASE_DIR = Path(__file__).parent
+API_KEY_FILE = BASE_DIR / "api_key.txt"
+def _load_gemini_key() -> str:
+    if not API_KEY_FILE.exists():
+        raise FileNotFoundError(f"API-Key Datei nicht gefunden: {API_KEY_FILE}")
+    key = API_KEY_FILE.read_text(encoding="utf-8").strip()
+    if not key:
+        raise ValueError(f"API-Key Datei ist leer: {API_KEY_FILE}")
+    return key
+
 class JobSource(Enum):
     STEPSTONE = "StepStone"
     XING = "Xing"
     STELLENANZEIGEN = "Stellenanzeigen"
 
 class AIModel(Enum):
-    GEMENI_PRO = "gemini-2.5-pro-preview-05-06"
-    GEMENI_FLASH = "gemini-2.5-flash-preview-05-20"
-    GEMINI_FLASH_CHEAP = "gemini-2.5-flash-lite-preview-06-17"
+    GEMINI_PRO = "gemini-2.5-flash"
+    GEMINI_FLASH = "gemini-2.5-flash-preview-04-17"
+    GEMINI_FLASH_CHEAP = "gemini-2.0-flash-lite"
 
 @dataclass
 class PathConfig:
@@ -27,17 +37,17 @@ class PathConfig:
 
 @dataclass
 class AIConfig:
-    gemini_api_key: str = field(default_factory=lambda: os.getenv("AIzaSyB880bqvOVEs-uBpdukKPIaRYGMfvSUvdo"))
+    gemini_api_key: str = field(default_factory=_load_gemini_key)
 
-    cover_letter_model_premium: AIModel = AIModel.GEMENI_PRO
+    cover_letter_model_premium: AIModel = AIModel.GEMINI_PRO
     cover_letter_temperature_premium: float = 0.5
     cover_letter_min_rating_premium: int = 8
 
-    cover_letter_model: AIModel = AIModel.GEMENI_FLASH
+    cover_letter_model: AIModel = AIModel.GEMINI_FLASH
     cover_letter_temperature: float = 0.5
     cover_letter_min_rating: int = 5
 
-    formatting_model: AIModel = AIModel.GEMENI_FLASH
+    formatting_model: AIModel = AIModel.GEMINI_FLASH
     formatting_temperature: float = 0.2
 
     rating_model: AIModel = AIModel.GEMINI_FLASH_CHEAP
@@ -45,35 +55,27 @@ class AIConfig:
 
 @dataclass
 class ScrapingConfig:
-    max_total_jobs_per_session: int = 200
-    max_jobs_to_prozess_session: int = 20
+    max_jobs_to_prozess_session: int = 5
 
-    page_request_delay_min: float = 0.3
-    page_request_delay_max: float = 0.8
-    item_request_delay_min: float = 0.2
-    item_request_delay_max: float = 0.5
-
-    max_retries: int = 2
-    retry_delay_base: float = 1.5
+    page_request_delay_min: float = 1
+    page_request_delay_max: float = 2
+    item_request_delay_min: float = 2
+    item_request_delay_max: float = 2
+    max_retries: int = 3
+    retry_delay_base: float = 2
     retry_delay_max: float = 10.0
-    retry_on_status_codes: List[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
-
     request_timeout: int = 15
-    page_load_timeout: int = 12
-    implicit_wait: int = 3
-    explicit_wait: int = 8
 
-    user_agent_rotation_chance: float = 0.15
+    user_agent_rotation_chance: float = 2
 
     selenium_emulate_mobile_default: bool = False
     selenium_wait_time_default: int = 1
-    selenium_scroll_iterations_default: int = 10
     selenium_scroll_wait_time_default: float = 0.5
     selenium_window_width_default: int = 400
     selenium_window_height_default: int = 900
 
-SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
-    JobSource.STEPSTONE: {
+SITE_CONFIGS: Dict[str, Dict[str, Any]] = {
+    JobSource.STEPSTONE.value: {
         "base_url": "https://www.stepstone.de",
         "search_url_template": "/jobs/{jobTitle}/in-{location}?radius={radius}&di={discipline}&page={seite}",
         "job_url": {
@@ -84,7 +86,7 @@ SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
         "job_content_selector": 'div[data-at="job-ad-content"]',
         "job_titel_selector": 'strong[data-at="header-job-title"]',
     },
-    JobSource.XING: {
+    JobSource.XING.value: {
         "base_url": "https://www.xing.com",
         "search_url_template": "/jobs/search?keywords={jobTitle}&location={location}&radius={radius}",
         "job_url": {
@@ -93,8 +95,10 @@ SITE_CONFIGS: Dict[JobSource, Dict[str, Any]] = {
         },
         "job_content_selector": "div[data-testid='expandable-content']",
         "job_titel_selector": "h2[data-xds='Headline']",
+        "max_job_amount": "headline-styles__Headline-sc-339d833d-0 kmUSxO results-header__Headline-sc-e1bd05a1-1 iNORxT",
+        "jobs_per_lazyload": 20
     },
-    JobSource.STELLENANZEIGEN: {
+    JobSource.STELLENANZEIGEN.value: {
         "base_url": "https://www.stellenanzeigen.de/",
         "search_url_template": "/suche/?fulltext={jobTitle}&locationIds={location}&perimeterRadius={radius}",
         "job_url": {
@@ -111,7 +115,8 @@ class AppConfig:
     paths: PathConfig = field(default_factory=PathConfig)
     ai: AIConfig = field(default_factory=AIConfig)
     scraping: ScrapingConfig = field(default_factory=ScrapingConfig)
-    site_configs: Dict[JobSource, Dict[str, Any]] = field(default_factory=lambda: SITE_CONFIGS)
-    debug: bool = field(default_factory=lambda: os.getenv("DEBUG", "True").lower() == "true")
+    site_configs: Dict[JobSource, Dict[str, Any]] = field(
+        default_factory=lambda: SITE_CONFIGS
+    )
 
 app_config = AppConfig()

@@ -1,19 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
-from enum import Enum
 import re
-from projekt.backend.core.config import app_config
+from projekt.backend.core.config import app_config, JobSource, AIModel
 
-
-class JobSource(Enum):
-    STEPSTONE = "StepStone"
-    XING = "Xing"
-    STELLENANZEIGEN = "Stellenanzeigen"
-
-class AIModel(Enum):
-    FLASH = 'gemini-2.5-flash-preview-05-20'
-    PRO = 'gemini-2.5-pro-preview-05-06'
-    FLASH_2 = 'gemini-2.0-flash'
 
 @dataclass
 class SearchCriteria:
@@ -87,12 +76,13 @@ class JobDetailsAi:
     cover_letters : str
     ai_model_used : AIModel
 
-    @property
-    def is_worth_processing(self) -> bool:
-        return self.rating >= app_config.ai.cover_letter_min_rating
-
     def get_output_filename(self) -> str:
-        return f"{self.rating}_{self.scraped.title}.pdf"
+        raw = f"{self.rating}_{self.scraped.title}"
+        safe = re.sub(r"[^0-9A-Za-z_-]+", "_", raw)
+        safe = re.sub(r"_+", "_", safe).strip("_")
+        max_len = 100
+        safe = safe[:max_len]
+        return f"{safe}.pdf"
 
 @dataclass
 class ScrapingSession:
