@@ -99,7 +99,6 @@ JOB_DESCRIPTION = """
 </html>
 """
 
-# Korrekte Struktur für Test-Applicants
 APPLICANTS = {
     "Alice": ApplicantProfile(
         study_info="Wirtschaftsinformatik an der HM München, 5. Semester",
