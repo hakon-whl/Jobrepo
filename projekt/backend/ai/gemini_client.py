@@ -9,7 +9,6 @@ class GeminiClient:
     def _initialize(cls) -> None:
         if not cls._initialized:
             api_key = app_config.ai.gemini_api_key
-
             if not api_key:
                 raise ValueError(
                     "Gemini API-Schlüssel ist erforderlich. "
@@ -26,11 +25,7 @@ class GeminiClient:
         model = genai.GenerativeModel(model_type)
         config = genai.GenerationConfig(temperature=temperature)
 
-        response = model.generate_content(
-            prompt,
-            generation_config=config
-        )
-
+        response = model.generate_content(prompt, generation_config=config)
         return response.text or ""
 
     @classmethod

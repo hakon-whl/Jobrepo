@@ -8,7 +8,6 @@ class PromptManager:
 
     def _load_prompt(self, name: str) -> str:
         prompt_file = self.prompts_directory / f"{name}.txt"
-
         if not prompt_file.exists():
             available = self.get_available_prompts()
             raise FileNotFoundError(
