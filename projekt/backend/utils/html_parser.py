@@ -16,7 +16,6 @@ def extract_attribute_from_selector(html_content: str, selector: str, attribute:
 
     return urls
 
-
 def extract_text_from_selector(html_content: str, selector: str) -> Optional[str]:
     if not html_content:
         return None

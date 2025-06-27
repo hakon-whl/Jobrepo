@@ -1,4 +1,3 @@
-# projekt/backend/scrapers/__init__.py
 from .xing_scraper import XingScraper
 from .stepstone_scraper import StepStoneScraper
 

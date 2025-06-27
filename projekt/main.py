@@ -1,11 +1,9 @@
 import datetime
-import json
 import logging
 import math
 import os
 import re
 import subprocess
-from typing import Optional
 
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, send_from_directory,send_file
@@ -182,8 +180,6 @@ def process_xing_jobs(search_criteria: SearchCriteria,applicant_profile: Applica
 
     return ai_jobs
 
-
-
 @app.route('/api/create_job', methods=['POST'])
 def create_job_summary():
     try:
@@ -228,7 +224,6 @@ def create_job_summary():
                 rating=job.rating
             )
 
-        # Zusammenfassung mergen
         merged_filename = "summary.pdf"
         merged_path = os.path.join(session_dir, merged_filename)
         if not merge_pdfs_by_rating(session_dir, merged_path):

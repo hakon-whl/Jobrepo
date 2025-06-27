@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Any
 import re
-from projekt.backend.core.config import app_config, JobSource, AIModel
+from projekt.backend.core.config import JobSource, AIModel
 
 @dataclass
 class SearchCriteria:
