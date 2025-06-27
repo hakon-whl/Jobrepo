@@ -5,10 +5,6 @@ import { JOB_SITES, DISCIPLINES } from "../constants/enums";
 import SkillsManager from "./SkillsManager";
 import { extractTextFromPdfBlob } from "../App";
 
-/**
- * Hauptformular für die Bewerbungsdaten-Erfassung
- * Sammelt alle relevanten Informationen und verarbeitet PDF-Uploads
- */
 function ApplicationForm({
   onSubmit,
   isSubmitting,
@@ -16,7 +12,6 @@ function ApplicationForm({
   availableSkills,
   onSkillsUpdate
 }) {
-  // React Hook Form Setup mit Standardwerten
   const {
     register,
     control,
@@ -36,16 +31,15 @@ function ApplicationForm({
     }
   });
 
-  // Überwachung spezifischer Formularfelder für dynamische UI-Updates
   const radius = watch("radius");
   const selectedLocation = watch("location");
 
-  // Dynamisches Label für Radius basierend auf ausgewähltem Ort
+
   const selectedCityLabel =
     locationsData.find((l) => l.value === selectedLocation)?.label ||
     "Ort wählen";
 
-  // Skills-Suchfunktionalität
+
   const [skillSearch, setSkillSearch] = useState("");
   const filteredSkills = useMemo(() => {
     if (!skillSearch.trim()) return availableSkills;
@@ -54,17 +48,14 @@ function ApplicationForm({
     );
   }, [skillSearch, availableSkills]);
 
-  // State für PDF-Datei-Uploads
+
   const [selectedFiles, setSelectedFiles] = useState([]);
 
-  /**
-   * Formular-Submit-Handler
-   * Extrahiert Text aus PDFs und fügt ihn zu den Formulardaten hinzu
-   */
+
   const submitHandler = async (data) => {
     const pdfContents = {};
 
-    // PDF-Text-Extraktion für jede hochgeladene Datei
+
     for (const file of selectedFiles) {
       try {
         pdfContents[file.name] = await extractTextFromPdfBlob(file);
@@ -73,7 +64,6 @@ function ApplicationForm({
       }
     }
 
-    // Weiterleitung an Parent-Komponente mit erweiterten Daten
     onSubmit({ ...data, pdfContents });
   };
 

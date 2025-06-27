@@ -31,31 +31,24 @@ function App() {
   const [submitStatus, setSubmitStatus] = useState(null);
   const { allSkills, updateSkills } = useSkills();
 
-  /**
-   * Formular-Submit: holt den PDF-Blob und löst
-   * den Download per unsichtbarem <a> aus
-   */
+
   const handleFormSubmit = async (data) => {
     setIsSubmitting(true);
     setSubmitStatus('loading');
 
     try {
-      // Backend gibt einen Blob zurück
+
       const pdfBlob = await submitApplicationData(data);
 
-      // 1. Blob → Object-URL
       const url = window.URL.createObjectURL(pdfBlob);
 
-      // 2. unsichtbaren Link erzeugen
       const a = document.createElement('a');
       a.href = url;
       a.download = 'summary.pdf';
       document.body.appendChild(a);
 
-      // 3. Klick auslösen
       a.click();
 
-      // 4. Aufräumen
       a.remove();
       window.URL.revokeObjectURL(url);
 

@@ -1,4 +1,3 @@
-// Statische Datendefinitionen für Formular-Optionen
 export const LOCATIONS_DATA = [
   { value: "berlin", label: "Berlin" },
   { value: "braunschweig", label: "Braunschweig" },
@@ -60,7 +59,6 @@ export const DISCIPLINES = [
   { value: "Groß- und Einzelhandel", label: "Groß- und Einzelhandel" },
 ];
 
-// Vordefinierte Standard-Skills (nicht löschbar)
 export const BASE_SKILLS = [
   { value: "javascript", label: "JavaScript" },
   { value: "python", label: "Python" },
@@ -84,10 +82,6 @@ export const BASE_SKILLS = [
   { value: "projektmanagement", label: "Projektmanagement" },
 ];
 
-/**
- * Lädt benutzerdefinierte Skills aus dem localStorage
- * @returns {Array} Array von Custom Skills oder leeres Array bei Fehlern
- */
 export const loadCustomSkillsFromStorage = () => {
   try {
     const storedSkills = localStorage.getItem('customSkills');
@@ -98,10 +92,6 @@ export const loadCustomSkillsFromStorage = () => {
   }
 };
 
-/**
- * Speichert benutzerdefinierte Skills im localStorage
- * @param {Array} customSkills - Array von Custom Skills zum Speichern
- */
 export const saveCustomSkillsToStorage = (customSkills) => {
   try {
     localStorage.setItem('customSkills', JSON.stringify(customSkills));
@@ -110,10 +100,6 @@ export const saveCustomSkillsToStorage = (customSkills) => {
   }
 };
 
-/**
- * Kombiniert Base Skills mit benutzerdefinierten Skills
- * @returns {Array} Vollständige Liste aller verfügbaren Skills
- */
 export const getAllSkills = () => {
   const customSkills = loadCustomSkillsFromStorage();
   return [...BASE_SKILLS, ...customSkills];
