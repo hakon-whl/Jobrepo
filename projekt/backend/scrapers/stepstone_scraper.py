@@ -6,11 +6,8 @@ from urllib.parse import urljoin, quote_plus
 from typing import List
 import re
 
-
-
 class StepStoneScraper(RequestBaseScraper):
-
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("StepStone")
         self.config = app_config.site_configs[JobSource.STEPSTONE.value]
         self.base_url = self.config["base_url"]
@@ -28,30 +25,32 @@ class StepStoneScraper(RequestBaseScraper):
             discipline=params.get("discipline", ""),
             seite=page
         )
-
         return urljoin(self.base_url, search_path)
 
     def extract_job_urls(self, url: str) -> List[str]:
         html = self.get_html_content(url)
         soup = BeautifulSoup(html, "html.parser")
+
         cfg = self.config["job_url"]
         selector = cfg["selector"]
         attribute = cfg["attribute"]
+
         links = soup.select(selector)
         urls = {
             urljoin(self.base_url, a.get(attribute))
-            for a in links
-            if a.get(attribute)
+            for a in links if a.get(attribute)
         }
         return list(urls)
 
     def get_max_pages(self, url: str) -> int:
         html = self.get_html_content(url)
         soup = BeautifulSoup(html, "html.parser")
+
         selector = self.config["max_page_selector"]
         element = soup.select_one(selector)
         if not element:
             return 1
+
         numbers = re.findall(r"\d+", element.get_text(strip=True))
         return int(numbers[-1]) if numbers else 1
 
@@ -60,6 +59,7 @@ class StepStoneScraper(RequestBaseScraper):
             if not self.close_client:
                 self.close_client()
             return None
+
         try:
             html = self.get_html_content(job_url)
             soup = BeautifulSoup(html, "html.parser")
@@ -80,7 +80,6 @@ class StepStoneScraper(RequestBaseScraper):
                 url=job_url,
                 source=JobSource.STEPSTONE
             )
-
         except Exception as e:
             return JobDetailsScraped(
                 title="Fehler beim Extrahieren",

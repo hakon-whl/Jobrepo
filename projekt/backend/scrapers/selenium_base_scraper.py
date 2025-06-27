@@ -54,34 +54,31 @@ class SeleniumBaseScraper(ABC):
             logger.error(f"[{self.site_name}] WebDriver Init fehlgeschlagen: {e}")
             self.driver = None
 
-    def load_url(self, url: str) -> bool:
+    def load_url(self, url: str) -> bool | None:
         logger.info(f"[{self.site_name}] Lade URL: {url}")
+
         for attempt in range(1, self.max_retries + 1):
             try:
                 self.driver.get(url)
-                time.sleep(random.uniform(
-                    self.page_delay_min,
-                    self.page_delay_max
-                ))
+                time.sleep(random.uniform(self.page_delay_min, self.page_delay_max))
                 logger.info(f"[{self.site_name}] URL erfolgreich geladen")
                 return True
             except Exception as e:
-                logger.warning(
-                    f"[{self.site_name}] Versuch {attempt} fehlgeschlagen: {e}"
-                )
+                logger.warning(f"[{self.site_name}] Versuch {attempt} fehlgeschlagen: {e}")
                 if attempt == self.max_retries:
                     logger.error(f"[{self.site_name}] URL konnte nicht geladen werden: {url}")
                     return False
-                backoff = min(
-                    self.retry_delay_base * 2 ** (attempt - 1),
-                    self.retry_delay_max
-                )
+                backoff = min(self.retry_delay_base * 2 ** (attempt - 1),
+                              self.retry_delay_max)
                 time.sleep(backoff)
+                return None
+        return None
 
     def get_html_content(self) -> Optional[str]:
         if not self.driver:
             logger.warning(f"[{self.site_name}] Kein WebDriver – kein HTML")
             return None
+
         return self.driver.page_source
 
     def close_client(self) -> None:
