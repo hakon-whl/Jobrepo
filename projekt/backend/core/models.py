@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Any
+from typing import Dict, List, Any
 import re
 from projekt.backend.core.config import app_config, JobSource, AIModel
-
 
 @dataclass
 class SearchCriteria:
@@ -26,13 +25,6 @@ class SearchCriteria:
             "radius": self.radius
         }
 
-    def to_stellenanzeigen_params(self) -> Dict[str, Any]:
-        return {
-            "jobTitle": self.job_title,
-            "location": self.location,
-            "radius": self.radius
-        }
-
 @dataclass
 class ApplicantProfile:
     study_info: str
@@ -42,15 +34,12 @@ class ApplicantProfile:
 
     def to_ai_prompt_format(self) -> str:
         skills_text = ", ".join(self.skills) if self.skills else "Keine Skills angegeben"
-        profile_text = f"""
-        Studium: {self.study_info}
+        profile_text = f"""Studium: {self.study_info}
         Interessen: {self.interests}
-        Fähigkeiten: {skills_text}
-        """
+        Fähigkeiten: {skills_text}"""
         return profile_text
 
     def get_previous_cover_letters(self) -> str:
-        """Kombiniert alle PDF-Inhalte zu einem String"""
         if not self.pdf_contents:
             return ""
         combined_letters = "\n\n".join(self.pdf_contents.values())
@@ -70,11 +59,11 @@ class JobDetailsScraped:
 
 @dataclass
 class JobDetailsAi:
-    scraped : JobDetailsScraped
-    rating : int
-    formatted_text : str
-    cover_letters : str
-    ai_model_used : AIModel
+    scraped: JobDetailsScraped
+    rating: int
+    formatted_text: str
+    cover_letters: str
+    ai_model_used: AIModel
 
     def get_output_filename(self) -> str:
         raw = f"{self.rating}_{self.scraped.title}"
