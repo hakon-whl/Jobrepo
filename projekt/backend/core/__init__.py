@@ -1,14 +1,9 @@
-# projekt/backend/core/__init__.py
-
 from .models import (
     JobSource,
     AIModel,
     SearchCriteria,
     ApplicantProfile,
-    JobDetails,
-    JobMatchResult,
     ScrapingSession,
-    PDFGenerationConfig
 )
 
 from .config import (
@@ -21,17 +16,11 @@ from .config import (
 )
 
 __all__ = [
-    # Models
     'JobSource',
     'AIModel',
     'SearchCriteria',
     'ApplicantProfile',
-    'JobDetails',
-    'JobMatchResult',
     'ScrapingSession',
-    'PDFGenerationConfig',
-
-    # Config
     'PathConfig',
     'AIConfig',
     'ScrapingConfig',
