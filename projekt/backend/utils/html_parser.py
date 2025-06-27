@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 import unicodedata
 import re
 
-
 def extract_attribute_from_selector(html_content: str, selector: str, attribute: str = "href") -> List[str]:
     urls = []
     try:
@@ -33,4 +32,5 @@ def extract_text_from_selector(html_content: str, selector: str) -> Optional[str
             return cleaned_text.strip()
     except Exception as e:
         print(f"Fehler beim Extrahieren von Text mit Selektor '{selector}': {e}")
+
     return None

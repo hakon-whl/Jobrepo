@@ -7,12 +7,10 @@ from PyPDF2 import PdfMerger
 from projekt.backend.core.models import JobDetailsAi
 
 def markdown_to_pdf(jobdetailsai: JobDetailsAi, session_dir: str, rating: int) -> bool:
-    filename = jobdetailsai.get_output_filename()  # z.B. "6_Mein Job (m/w/d).pdf"
-
+    filename = jobdetailsai.get_output_filename()
     os.makedirs(session_dir, exist_ok=True)
-    target_path = os.path.join(session_dir,filename)
+    target_path = os.path.join(session_dir, filename)
 
-    # 3) Markdown-Abschnitte zusammenstellen & cleanen
     clean_md = lambda txt: re.sub(r"```(?:markdown)?\n?|```", "", txt or "").strip()
     parts = []
     if rating is not None:
@@ -33,7 +31,6 @@ def markdown_to_pdf(jobdetailsai: JobDetailsAi, session_dir: str, rating: int) -
     return not err
 
 def merge_pdfs_by_rating(src_dir: str, dest: str) -> bool:
-    """Führt alle PDFs in src_dir nach Rating (aus Dateinamen) zusammen."""
     def rate(fn):
         m = re.match(r'(\d+)_', fn)
         return int(m.group(1)) if m else -1
@@ -50,4 +47,5 @@ def merge_pdfs_by_rating(src_dir: str, dest: str) -> bool:
         merger.append(os.path.join(src_dir, pdf))
     merger.write(dest)
     merger.close()
+
     return True
