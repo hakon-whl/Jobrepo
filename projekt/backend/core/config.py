@@ -49,7 +49,7 @@ class AIConfig:
     cover_letter_min_rating: int = 5
 
     formatting_model: AIModel = AIModel.GEMINI_FLASH
-    formatting_temperature: float = 0.2
+    formatting_temperature: float = 0.01
 
     rating_model: AIModel = AIModel.GEMINI_FLASH_CHEAP
     rating_temperature: float = 0.01
@@ -60,17 +60,12 @@ class ScrapingConfig:
 
     page_request_delay_min: float = 1
     page_request_delay_max: float = 2
-    item_request_delay_min: float = 2
-    item_request_delay_max: float = 2
 
     max_retries: int = 3
     retry_delay_base: float = 2
     retry_delay_max: float = 10.0
     request_timeout: int = 15
 
-    user_agent_rotation_chance: float = 2
-
-    selenium_emulate_mobile_default: bool = False
     selenium_wait_time_default: int = 1
     selenium_scroll_wait_time_default: float = 0.5
     selenium_window_width_default: int = 400

@@ -1,115 +1,199 @@
-import subprocess
-import os
-import sys
-from flask import Flask, request, jsonify, send_from_directory, send_file, make_response
 import datetime
-import traceback
-import re
+import json
 import logging
+import math
+import os
+import re
+import subprocess
+from typing import Optional
 
-try:
-    from projekt.backend.ai.text_processor import TextProcessor
-    from projekt.backend.scrapers.stepstone_scraper import StepstoneScraper
-    from projekt.backend.scrapers.xing_scraper import XingScraper
-    from projekt.backend.scrapers.stellenanzeigen_scraper import StellenanzeigenScraper
-    from projekt.backend.utils.pdf_utils import PdfUtils
-    from projekt.backend.core.models import (
-        SearchCriteria, ApplicantProfile, JobMatchResult,
-        ScrapingSession, JobSource
-    )
-    from projekt.backend.core.config import app_config, setup_logging
+from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify, send_from_directory,send_file
 
-except ImportError as e:
-    print(f"KRITISCHER FEHLER: {e}")
-    sys.exit(1)
+from projekt.backend.ai.text_processor import TextProcessor
+from projekt.backend.scrapers.stepstone_scraper import StepStoneScraper
+from projekt.backend.scrapers.xing_scraper import XingScraper
+from projekt.backend.core.models import SearchCriteria,ApplicantProfile,JobSource,JobDetailsAi,JobDetailsScraped
+from projekt.backend.core.config import app_config
+from projekt.backend.utils.pdf_utils import markdown_to_pdf, merge_pdfs_by_rating
 
-# Minimal logging setup
-setup_logging(app_config.logging_config, app_config.paths.logs_dir)
-logger = logging.getLogger(__name__)
-
-# Flask und Werkzeug Logging reduzieren
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('WDM').setLevel(logging.WARNING)
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
+)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
+)
 app = Flask(__name__, static_folder=app_config.paths.build_dir)
+app.logger.setLevel(logging.INFO)
 
-
-def create_session_directory(job_title: str, location: str, job_source: JobSource) -> str:
+def create_session_directory(job_title: str, location: str,job_source: JobSource) -> str:
     try:
         now = datetime.datetime.now()
-        date_str = now.strftime("%d.%m.%Y")
-        time_str = now.strftime("%M-%H")
-
-        clean_job_title = re.sub(r'[^a-zA-Z0-9\s]', '', job_title)
-        clean_job_title = re.sub(r'\s+', '_', clean_job_title.strip())
-        clean_job_title = clean_job_title[:25]
-
-        if not clean_job_title:
-            clean_job_title = "Unbekannter_Job"
-
-        clean_location = re.sub(r'[^a-zA-Z0-9\s]', '', location)
-        clean_location = re.sub(r'\s+', '_', clean_location.strip())
-        clean_location = clean_location[:15]
-
-        if not clean_location:
-            clean_location = "Unbekannte_Stadt"
-
-        clean_job_source = re.sub(r'[^a-zA-Z0-9]', '', job_source.value)
-        clean_job_source = clean_job_source[:15]
-
-        if not clean_job_source:
-            clean_job_source = "UnbekannteSeite"
-
-        session_dir_name = f"{clean_job_title}_{clean_location}_{clean_job_source}_{date_str}_{time_str}"
-        session_dir_path = os.path.join(app_config.paths.temp_pdfs_dir, session_dir_name)
-
-        os.makedirs(session_dir_path, exist_ok=True)
-        return session_dir_path
+        ds = now.strftime("%d.%m.%Y")
+        ts = now.strftime("%H-%M")
+        def clean(s: str, mx: int) -> str:
+            c = re.sub(r'[^0-9A-Za-z\s]', '', s).strip()
+            c = re.sub(r'\s+', '_', c)[:mx]
+            return c or "Unbekannt"
+        dname = (
+            f"{clean(job_title,25)}_"
+            f"{clean(location,15)}_"
+            f"{clean(job_source.value,15)}_"
+            f"{ds}_{ts}"
+        )
+        path = os.path.join(app_config.paths.temp_pdfs_dir, dname)
+        os.makedirs(path, exist_ok=True)
+        return path
 
     except Exception as e:
-        logger.error(f"Session-Verzeichnis Fehler: {e}")
-        return app_config.paths.temp_pdfs_dir
+        app.logger.error("Session-Verz err: %s", e)
+        return str(app_config.paths.temp_pdfs_dir)
 
-
-def setup_frontend_and_server():
+def setup_frontend_and_server() -> bool:
     try:
-        if not os.path.exists(app_config.paths.build_dir) or not os.listdir(app_config.paths.build_dir):
-            subprocess.run(["npm", "run", "build"], cwd=app_config.paths.frontend_dir, check=True)
+        bd = app_config.paths.build_dir
+        if not os.path.exists(bd) or not os.listdir(bd):
+            app.logger.info("Baue Frontend …")
+            subprocess.run(
+                ["npm", "run", "build"],
+                cwd=app_config.paths.frontend_dir,
+                check=True
+            )
+            app.logger.info("Frontend gebaut")
         return True
+
     except Exception as e:
-        logger.error(f"Frontend Setup Fehler: {e}")
+        app.logger.error("Frontend-Setup fehlgeschlagen: %s", e)
         return False
 
+def process_stepstone_jobs(search_criteria: SearchCriteria,applicant_profile: ApplicantProfile) -> list[JobDetailsAi]:
+    scraper = StepStoneScraper()
+    tp = TextProcessor()
+    ai_jobs: list[JobDetailsAi] = []
 
-def get_scraper_for_source(job_source: JobSource):
-    scraper_map = {
-        JobSource.STEPSTONE: StepstoneScraper,
-        JobSource.XING: XingScraper,
-        JobSource.STELLENANZEIGEN: StellenanzeigenScraper
-    }
-    return scraper_map.get(job_source)()
+    try:
+        scraper.open_client()
+        start_url = scraper.build_search_url(search_criteria, page=1)
+        max_page = scraper.get_max_pages(start_url)
+        app.logger.info("StepStone: %d Seiten gefunden", max_page)
+
+        all_urls = []
+        for p in range(1, max_page + 1):
+            page_url = scraper.build_search_url(search_criteria, page=p)
+            urls = scraper.extract_job_urls(page_url)
+            app.logger.info(" Seite %d: %d Jobs", p, len(urls))
+            all_urls.extend(urls)
+
+        all_urls = list(dict.fromkeys(all_urls))
+
+        for url in all_urls:
+            if scraper.legit_job_counter >= app_config.scraping.max_jobs_to_prozess_session:
+                break
+            jd = scraper.extract_job_details_scraped(url)
+            if not jd or not jd.is_internship:
+                continue
+            rating = tp.rate_job_match(jd, applicant_profile)
+            app.logger.info("StepStone Rating: %d", rating)
+            if rating >= app_config.ai.cover_letter_min_rating_premium:
+                model_enum = app_config.ai.cover_letter_model_premium
+                threshold = app_config.ai.cover_letter_min_rating_premium
+            else:
+                model_enum = app_config.ai.cover_letter_model
+                threshold = app_config.ai.cover_letter_min_rating
+            if rating >= threshold:
+                scraper.legit_job_counter += 1
+                formatted = tp.format_job_description(jd.raw_text)
+                cover = tp.generate_anschreiben(jd, applicant_profile, model_enum.value)
+                ai_jobs.append(JobDetailsAi(
+                    scraped=jd,
+                    rating=rating,
+                    formatted_text=formatted,
+                    cover_letters=cover,
+                    ai_model_used=model_enum
+                ))
+
+    finally:
+        scraper.close_client()
+
+    return ai_jobs
+
+def process_xing_jobs(search_criteria: SearchCriteria,applicant_profile: ApplicantProfile) -> list[JobDetailsAi]:
+    scraper = XingScraper()
+    tp = TextProcessor()
+    ai_jobs: list[JobDetailsAi] = []
+
+    try:
+        scraper.open_client()
+        start_url = scraper.build_search_url(search_criteria)
+        if not scraper.load_url(start_url):
+            return []
+
+        html = scraper.get_html_content() or ""
+        soup = BeautifulSoup(html, "html.parser")
+        cfg = scraper.config
+
+        class_str = cfg.get("max_job_amount", "")
+        selector = "." + ".".join(class_str.split())
+        el = soup.select_one(selector)
+        if el and el.get_text(strip=True):
+            digits = re.sub(r"[^\d]", "", el.get_text(strip=True))
+            total_jobs = int(digits) if digits else 0
+        else:
+            total_jobs = 0
+
+        per_load = cfg.get("jobs_per_lazyload", 20)
+        iterations = max(1, math.ceil(total_jobs / per_load))
+        app.logger.info("Xing: %d Jobs → %d Lazy-Loads", total_jobs, iterations)
+        scraper.get_to_bottom(iterations)
+
+        urls = scraper.extract_job_urls()
+        urls = list(dict.fromkeys(urls))
+
+        for url in urls:
+            if scraper.legit_job_counter >= app_config.scraping.max_jobs_to_prozess_session:
+                break
+            jd = scraper.extract_job_details_scraped(url)
+            if not jd or not jd.is_internship:
+                continue
+            rating = tp.rate_job_match(jd, applicant_profile)
+            app.logger.info("Xing Rating: %d", rating)
+            if rating >= app_config.ai.cover_letter_min_rating_premium:
+                model_enum = app_config.ai.cover_letter_model_premium
+                threshold = app_config.ai.cover_letter_min_rating_premium
+            else:
+                model_enum = app_config.ai.cover_letter_model
+                threshold = app_config.ai.cover_letter_min_rating
+            if rating >= threshold:
+                scraper.legit_job_counter += 1
+                formatted = tp.format_job_description(jd.raw_text)
+                cover = tp.generate_anschreiben(jd, applicant_profile, model_enum.value)
+                ai_jobs.append(JobDetailsAi(
+                    scraped=jd,
+                    rating=rating,
+                    formatted_text=formatted,
+                    cover_letters=cover,
+                    ai_model_used=model_enum
+                ))
+
+    finally:
+        scraper.close_client()
+
+    return ai_jobs
+
 
 
 @app.route('/api/create_job', methods=['POST'])
 def create_job_summary():
-    scraper = None
     try:
-        logger.info("Starte Job-Suche...")
-
-        # Request validieren
-        data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "error": "Keine Daten empfangen"}), 400
-
-        # Datenstrukturen erstellen
+        data = request.get_json() or {}
         search_criteria = SearchCriteria(
             job_title=data.get("jobTitle", ""),
             location=data.get("location", ""),
             radius=str(data.get("radius", "20")),
             discipline=data.get("discipline", "")
         )
-
         applicant_profile = ApplicantProfile(
             study_info=data.get("studyInfo", ""),
             interests=data.get("interests", ""),
@@ -117,184 +201,76 @@ def create_job_summary():
             pdf_contents=data.get("pdfContents", {})
         )
 
-        if not search_criteria.job_title or not search_criteria.location:
-            return jsonify({"success": False, "error": "Jobtitel und Ort sind erforderlich"}), 400
-
-        job_sites_input = data.get("jobSites", "")
+        src = data.get("jobSites", "")
         source_map = {
             "StepStone": JobSource.STEPSTONE,
-            "Xing": JobSource.XING,
-            "Stellenanzeigen.de": JobSource.STELLENANZEIGEN
+            "Xing":      JobSource.XING
         }
-        selected_source = source_map.get(job_sites_input)
-        if not selected_source:
-            return jsonify({"success": False, "error": f"Unbekannte Job-Site: {job_sites_input}"}), 400
+        selected = source_map.get(src)
+        if not selected:
+            return jsonify(success=False,error=f"Unbekannte Quelle '{src}'"), 400
 
-        # Session initialisieren
-        session_dir = create_session_directory(search_criteria.job_title, search_criteria.location, selected_source)
-        scraping_session = ScrapingSession(search_criteria, applicant_profile, selected_source)
+        session_dir = create_session_directory(
+            search_criteria.job_title,
+            search_criteria.location,
+            selected
+        )
 
-        logger.info(f"Suche: {search_criteria.job_title} in {search_criteria.location}")
-
-        # Scraper starten
-        scraper = get_scraper_for_source(selected_source)
-        job_urls = scraper.get_search_result_urls(search_criteria)
-
-        if not job_urls:
-            return jsonify({
-                "success": False,
-                "message": "Keine Jobs gefunden",
-                "stats": {"total_found": 0, "selected_source": selected_source.value}
-            }), 404
-
-        job_urls = list(set(job_urls))
-        scraping_session.total_jobs_found = len(job_urls)
-
-        logger.info(f"{len(job_urls)} Jobs gefunden")
-
-        # Jobs verarbeiten
-        text_processor = TextProcessor()
-        pdf_utils = PdfUtils()
-        max_jobs = min(len(job_urls), app_config.scraping.max_jobs_per_session)
-
-        logger.info(f"Verarbeite {max_jobs} Jobs...")
-
-        processed_count = 0
-        matches_count = 0
-
-        for i, job_url in enumerate(job_urls[:max_jobs]):
-            if job_url:
-                try:
-                    # Fortschritt alle 5 Jobs oder am Ende anzeigen
-                    if i % 5 == 0 or i == max_jobs - 1:
-                        logger.info(f"   {i + 1}/{max_jobs} Jobs verarbeitet")
-
-                    job_details = scraper.extract_job_details(job_url)
-
-                    if job_details and job_details.is_internship:
-                        processed_count += 1
-
-                        # Job formatieren und bewerten
-                        formatted_description = text_processor.format_job_description(job_details.raw_text)
-                        rating = text_processor.rate_job_match(job_details, applicant_profile)
-                        job_details.formatted_description = formatted_description
-
-                        ai_model_used = app_config.ai.cover_letter_model.value
-                        match_result = JobMatchResult(
-                            job_details=job_details,
-                            rating=rating,
-                            formatted_description=formatted_description,
-                            ai_model_used=ai_model_used
-                        )
-
-                        # NUR Jobs mit Rating >= 5 verarbeiten
-                        if match_result.is_worth_processing:
-                            matches_count += 1
-                            logger.info(f"Match gefunden (Rating: {rating}/10): {job_details.title}")
-
-                            # Anschreiben generieren
-                            cover_letter = text_processor.generate_anschreiben(
-                                job_details, applicant_profile
-                            )
-                            match_result.cover_letter = cover_letter
-
-                            # PDF erstellen
-                            pdf_filename = match_result.get_pdf_filename()
-                            full_pdf_path = os.path.join(session_dir, pdf_filename)
-
-                            if pdf_utils.markdown_to_pdf(
-                                    formatted_description,
-                                    full_pdf_path,
-                                    job_details.title,
-                                    job_details.url,
-                                    rating,
-                                    cover_letter
-                            ):
-                                scraping_session.add_result(match_result)
-
-                except Exception as job_error:
-                    logger.error(f"Job-Verarbeitung Fehler: {job_error}")
-                    continue
-
-        logger.info(f"Verarbeitung abgeschlossen: {matches_count} passende Jobs gefunden")
-
-        if scraping_session.successful_matches:
-            # PDF zusammenstellen
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            summary_pdf_filename = f"Jobs_{search_criteria.job_title}_{search_criteria.location}_{timestamp}.pdf"
-            summary_pdf_path = os.path.join(session_dir, summary_pdf_filename)
-
-            if pdf_utils.merge_pdfs_by_rating(session_dir, summary_pdf_path):
-                logger.info("PDF-Zusammenfassung erstellt")
-
-                response = make_response(send_file(
-                    summary_pdf_path,
-                    as_attachment=True,
-                    download_name=summary_pdf_filename,
-                    mimetype='application/pdf'
-                ))
-
-                @response.call_on_close
-                def cleanup():
-                    try:
-                        import shutil
-                        if os.path.exists(session_dir):
-                            shutil.rmtree(session_dir)
-                    except Exception:
-                        pass
-
-                return response
-            else:
-                return jsonify({"success": False, "error": "PDF-Erstellung fehlgeschlagen"}), 500
+        if selected == JobSource.STEPSTONE:
+            ai_jobs = process_stepstone_jobs(search_criteria, applicant_profile)
         else:
-            return jsonify({
-                "success": False,
-                "message": "Keine passenden Jobs gefunden",
-                "stats": {
-                    "total_found": scraping_session.total_jobs_found,
-                    "total_processed": scraping_session.total_jobs_processed,
-                    "selected_source": selected_source.value,
-                    "average_rating": scraping_session.average_rating if scraping_session.job_results else 0
-                }
-            }), 404
+            ai_jobs = process_xing_jobs(search_criteria, applicant_profile)
 
-    except Exception as e:
-        logger.error(f"KRITISCHER FEHLER: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Unerwarteter Fehler aufgetreten"
-        }), 500
+        for job in ai_jobs:
+            markdown_to_pdf(
+                jobdetailsai=job,
+                session_dir=session_dir,
+                rating=job.rating
+            )
 
-    finally:
-        if scraper:
-            try:
-                scraper.close_client()
-            except Exception:
-                pass
+        # Zusammenfassung mergen
+        merged_filename = "summary.pdf"
+        merged_path = os.path.join(session_dir, merged_filename)
+        if not merge_pdfs_by_rating(session_dir, merged_path):
+            app.logger.error("Fehler beim Zusammenführen der PDFs")
+            return jsonify(
+                success=False,
+                error="Fehler beim Erstellen der PDF-Zusammenfassung"
+            ), 500
 
+        return send_file(
+            merged_path,
+            as_attachment=True,
+            download_name=merged_filename,
+            mimetype='application/pdf'
+        ), 200
+
+    except Exception:
+        app.logger.exception("Unerwarteter Fehler in create_job_summary")
+        return jsonify(success=False,
+                       error="Ein unerwarteter Fehler ist aufgetreten"), 500
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
     try:
-        if path and os.path.exists(os.path.join(app_config.paths.build_dir, path)):
-            return send_from_directory(app_config.paths.build_dir, path)
-        return send_from_directory(app_config.paths.build_dir, 'index.html')
+        bd = app_config.paths.build_dir
+        fp = os.path.join(bd, path)
+        if path and os.path.exists(fp):
+            return send_from_directory(bd, path)
+        return send_from_directory(bd, 'index.html')
+
     except Exception as e:
-        return f"Frontend Fehler: {e}", 500
+        app.logger.error("Frontend-Fehler: %s", e)
+        return f"Frontend nicht verfügbar: {e}", 500
 
 
 def main():
-    try:
-        print("Server startet auf http://localhost:5000")
-
-        if setup_frontend_and_server():
-            app.run(host='0.0.0.0', port=5000, debug=app_config.debug)
-        else:
-            print("Server-Start fehlgeschlagen")
-    except Exception as e:
-        print(f"Server-Start Fehler: {e}")
+    app.logger.info("Starte Server auf http://0.0.0.0:5000")
+    if setup_frontend_and_server():
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    else:
+        app.logger.error("Server-Start abgebrochen")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+bs4~=0.0.1
+beautifulsoup4~=4.13.4
+protobuf~=4.25.7
+pathlib~=1.0.1
+Markdown~=3.4.3
+xhtml2pdf~=0.2.11
+PyPDF2~=3.0.1
+httpcore~=1.0.7
+selenium~=4.32.0
+requests~=2.31.0
+webdriver-manager~=4.0.2
+Flask~=2.3.3
