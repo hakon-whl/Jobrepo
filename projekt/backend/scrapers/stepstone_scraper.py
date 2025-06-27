@@ -7,7 +7,9 @@ from typing import List
 import re
 
 
+
 class StepStoneScraper(RequestBaseScraper):
+
     def __init__(self):
         super().__init__("StepStone")
         self.config = app_config.site_configs[JobSource.STEPSTONE.value]
@@ -53,17 +55,12 @@ class StepStoneScraper(RequestBaseScraper):
         numbers = re.findall(r"\d+", element.get_text(strip=True))
         return int(numbers[-1]) if numbers else 1
 
-    def extract_job_details_scraped(self, job_url: str) -> JobDetailsScraped:
-        if self.legit_job_counter <= self.max_jobs_to_prozess_session:
-            keywords = ["praktikant", "praktikum", "intern", "trainee", "werkstudent"]
-            if not any(keyword in job_url.lower() for keyword in keywords):
-                return JobDetailsScraped(
-                    title="Nicht qualifiziert (URL-Filter)",
-                    raw_text="Diese Stellenausschreibung wurde aufgrund der URL gefiltert.",
-                    url=job_url,
-                    source=JobSource.STEPSTONE
-                )
-
+    def extract_job_details_scraped(self, job_url: str) -> JobDetailsScraped | None:
+        if self.legit_job_counter >= app_config.scraping.max_jobs_to_prozess_session:
+            if not self.close_client:
+                self.close_client()
+            return None
+        try:
             html = self.get_html_content(job_url)
             soup = BeautifulSoup(html, "html.parser")
 
@@ -75,13 +72,19 @@ class StepStoneScraper(RequestBaseScraper):
             if content_el:
                 for tag in content_el(["script", "style"]):
                     tag.decompose()
-                raw_text = content_el.get_text(separator="\n", strip=True)
-            self.legit_job_counter += 1
+                raw_text = content_el.get_text(strip=True)
+
             return JobDetailsScraped(
                 title=title,
                 raw_text=raw_text,
                 url=job_url,
                 source=JobSource.STEPSTONE
             )
-        else:
-            self.close_client()
+
+        except Exception as e:
+            return JobDetailsScraped(
+                title="Fehler beim Extrahieren",
+                raw_text=f"Konnte Details nicht extrahieren: {e}",
+                url=job_url,
+                source=JobSource.STEPSTONE
+            )
