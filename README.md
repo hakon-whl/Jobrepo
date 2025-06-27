@@ -199,7 +199,8 @@ npm run build
 
 5. **Filter von Jobs durch Jobkeys (Praktikum, Werkstudent, ...) erweitern**  
    – In `backend/core/models.py` unter `JobDetailsScraped` in der `__post_init__(self)` Methode.
-
+6. **Config Allgemein**
+   - In der Datei backend/core/config.py sind sämtliche globalen Parameter definiert. Dies umfasst beispielsweise die Anzahl der Jobs in der Zusammenfassung (summary) sowie die CSS-Selektoren für das HTML-Parsing. Falls Anpassungswünsche bestehen, bietet die Datei backend/core/config.py üblicherweise alle notwendigen Elemente für eine Individualisierung.
 
 ---
 
