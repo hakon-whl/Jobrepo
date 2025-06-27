@@ -27,10 +27,10 @@ class AIModel(Enum):
 
 @dataclass
 class PathConfig:
-    frontend_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\frontend")
+    frontend_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\frontend")
     temp_pdfs_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\backend\temp_pdfs")
-    prompts_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\ai\prompts")
-    logs_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\infosys_done\projekt\backend\logs")
+    prompts_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\backend\ai\prompts")
+    logs_dir: Path = Path(r"C:\Users\wahlh\PycharmProjects\Jobrepo\projekt\backend\logs")
 
     @property
     def build_dir(self) -> Path:
